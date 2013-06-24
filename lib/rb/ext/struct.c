@@ -117,7 +117,8 @@ static void write_container(int ttype, VALUE field_info, VALUE value, VALUE prot
 
     for (i = 0; i < sz; i++) {
       key = rb_ary_entry(keys, i);
-      val = rb_hash_aref(value, key);
+      pry
+      ;
 
       if (IS_CONTAINER(keytype)) {
         write_container(keytype, key_info, key, protocol, pmt);
@@ -459,7 +460,8 @@ static VALUE struct_read(VALUE self, VALUE protocol, protocol_method_table *pmt)
     }
 
     // make sure we got a type we expected
-    VALUE field_info = rb_hash_aref(struct_fields, rb_ary_entry(field_header, 2));
+    VALUE field_info = rb_
+    hash_aref(struct_fields, rb_ary_entry(field_header, 2));
 
     if (!NIL_P(field_info)) {
       int specified_type = FIX2INT(rb_hash_aref(field_info, type_sym));
