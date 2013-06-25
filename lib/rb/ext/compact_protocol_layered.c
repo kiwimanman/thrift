@@ -25,28 +25,11 @@
 #include <bytes.h>
 #include "struct.h"
 #include "fastcall.h"
+#include "ruby_ptr.h"
 
 #define DEBUG 0
 
-#if SIZEOF_VOIDP <= SIZEOF_LONG
-  #define NUM2PTR(x) NUM2ULONG(x)
-  #define PTR2NUM(x) ULONG2NUM((unsigned long)x)
-#elif SIZEOF_VOIDP <= SIZEOF_LONG_LONG
-  #define NUM2PTR(x) NUM2ULL(x)
-  #define PTR2NUM(x) ULL2NUM((unsigned long long)x)
-#else
- #error "Pointer size too large, could not determine a good way to convert a C pointer to a Ruby object"
-#endif
-
-
-
-#if DEBUG
-  #define DEBUG_FUNCTION_ENTRY() printf("Layered %s\n", __FUNCTION__);
-  #define DEBUG_FUNCTION_PROGRES() printf("%s, %s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-#else
-  #define DEBUG_FUNCTION_ENTRY()
-  #define DEBUG_FUNCTION_PROGRES() 
-#endif
+#include "debug.h"
 
 
 #include "protocol_transfer.h"
@@ -639,7 +622,7 @@ static VALUE rb_read_message_begin(VALUE self) {
 
   int8_t protocol_id = transfer_read_byte(cd);
 
-  DEBUG_FUNCTION_PROGRES();
+  DEBUG_FUNCTION_PROGRESS();
 
   if (protocol_id != PROTOCOL_ID) {
     char buf[100];

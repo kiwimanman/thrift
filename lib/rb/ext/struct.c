@@ -21,29 +21,14 @@
 #include "constants.h"
 #include "macros.h"
 #include "strlcpy.h"
+#include "ruby_ptr.h"
+#include "struct_metadata.h"
 
  #define DEBUG 0
 
-
- #if SIZEOF_VOIDP <= SIZEOF_LONG
-  #define NUM2PTR(x) (void*)NUM2ULONG(x)
-  #define PTR2NUM(x) ULONG2NUM((unsigned long)x)
-#elif SIZEOF_VOIDP <= SIZEOF_LONG_LONG
-  #define NUM2PTR(x) (void*)NUM2ULL(x)
-  #define PTR2NUM(x) ULL2NUM((unsigned long long)x)
-#else
- #error "Pointer size too large, could not determine a good way to convert a C pointer to a Ruby object"
-#endif
+ #include "debug.h"
 
 
-
-#if DEBUG
-  #define DEBUG_FUNCTION_ENTRY() printf("%s\n", __FUNCTION__);
-  #define DEBUG_FUNCTION_PROGRES() printf("%s, %s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-#else
-  #define DEBUG_FUNCTION_ENTRY()
-  #define DEBUG_FUNCTION_PROGRES() 
-#endif
 
 
 
@@ -78,83 +63,90 @@ static ID sorted_field_ids_method_id;
 
 static VALUE union_write (VALUE self, VALUE protocol, protocol_method_table *pmt);
 static VALUE struct_write(VALUE self, VALUE protocol, protocol_method_table *pmt);
-static void write_anything_pmt(int ttype, VALUE value, VALUE protocol, VALUE field_info, protocol_method_table *pmt);
+static void write_anything(VALUE value, VALUE protocol, field_metadata* fmd, protocol_method_table *pmt);
 
-static VALUE get_field_value(VALUE obj, VALUE field_name) {
-  char name_buf[RSTRING_LEN(field_name) + 2];
+
+static VALUE get_field_value(VALUE obj, char* field_name) {
+  DEBUG_FUNCTION_ENTRY();
+  char name_buf[strlen(field_name) + 2];
 
   name_buf[0] = '@';
-  strlcpy(&name_buf[1], RSTRING_PTR(field_name), RSTRING_LEN(field_name) + 1);
+  strcpy(&name_buf[1], field_name);
 
-  VALUE value = rb_ivar_get(obj, rb_intern(name_buf));
+  DEBUGF("namebuf=%s", name_buf);
 
-  return value;
+  VALUE val = rb_ivar_get(obj, rb_intern(name_buf));
+
+  DEBUGF("%s ==> %s", field_name, RSTRING_PTR(rb_inspect(val)));
+
+  DEBUG_FUNCTION_EXIT();
+
+  return val;
 }
 
-static void write_container(int ttype, VALUE field_info, VALUE value, VALUE protocol, protocol_method_table* pmt) {
+static void write_container(field_metadata *fmd, VALUE value, VALUE protocol, protocol_method_table* pmt) {
   int sz, i;
 
-  if (ttype == TTYPE_MAP) {
+  DEBUG_FUNCTION_ENTRY();
+
+  if (fmd->type == TTYPE_MAP) {
+  DEBUG_FUNCTION_PROGRESS();
+
     VALUE keys;
     VALUE key;
     VALUE val;
 
     Check_Type(value, T_HASH);
 
-    VALUE key_info = rb_hash_aref(field_info, key_sym);
-    VALUE keytype_value = rb_hash_aref(key_info, type_sym);
-    int keytype = FIX2INT(keytype_value);
+    field_metadata* key_md = fmd->key;
+    int keytype = key_md->type;
 
-    VALUE value_info = rb_hash_aref(field_info, value_sym);
-    VALUE valuetype_value = rb_hash_aref(value_info, type_sym);
-    int valuetype = FIX2INT(valuetype_value);
+    field_metadata* value_md = fmd->value;
+    int valuetype = value_md->type;
+
 
     keys = rb_funcall(value, keys_method_id, 0);
-
     sz = RARRAY_LEN(keys);
 
-    fastcall_call(pmt->write_map_begin, protocol, keytype_value, valuetype_value, INT2FIX(sz));
+    fastcall_call(pmt->write_map_begin, protocol, INT2FIX(keytype), INT2FIX(valuetype), INT2FIX(sz));
 
     for (i = 0; i < sz; i++) {
       key = rb_ary_entry(keys, i);
-      pry
-      ;
+      val = rb_hash_aref(value, key);
 
-      if (IS_CONTAINER(keytype)) {
-        write_container(keytype, key_info, key, protocol, pmt);
-      } else {
-        write_anything_pmt(keytype, key, protocol, key_info, pmt);
-      }
-
-      if (IS_CONTAINER(valuetype)) {
-        write_container(valuetype, value_info, val, protocol, pmt);
-      } else {
-        write_anything_pmt(valuetype, val, protocol, value_info, pmt);
-      }
+      write_anything(key, protocol, key_md, pmt);
+      write_anything(val, protocol, value_md, pmt);
     }
 
     fastcall_call(pmt->write_map_end, protocol, Qnil);
-  } else if (ttype == TTYPE_LIST) {
+  } else if (fmd->type == TTYPE_LIST) {
+  DEBUG_FUNCTION_PROGRESS();
     Check_Type(value, T_ARRAY);
+  DEBUG_FUNCTION_PROGRESS();
 
     sz = RARRAY_LEN(value);
 
-    VALUE element_type_info = rb_hash_aref(field_info, element_sym);
-    VALUE element_type_value = rb_hash_aref(element_type_info, type_sym);
-    int element_type = FIX2INT(element_type_value);
+  DEBUG_FUNCTION_PROGRESS();
+    field_metadata* element_md = fmd->element;
+    int elementtype = element_md->type;
+  DEBUG_FUNCTION_PROGRESS();
 
-    fastcall_call(pmt->write_list_begin, protocol, element_type_value, INT2FIX(sz));
+    fastcall_call(pmt->write_list_begin, protocol, INT2FIX(elementtype), INT2FIX(sz));
+  DEBUG_FUNCTION_PROGRESS();
     for (i = 0; i < sz; ++i) {
+  DEBUG_FUNCTION_PROGRESS();
       VALUE val = rb_ary_entry(value, i);
-      if (IS_CONTAINER(element_type)) {
-        write_container(element_type, element_type_info, val, protocol, pmt);
-      } else {
-        write_anything_pmt(element_type, val, protocol, element_type_info, pmt);
-      }
+      
+  DEBUG_FUNCTION_PROGRESS();
+      write_anything(val, protocol, element_md, pmt);
+  DEBUG_FUNCTION_PROGRESS();
+      
     }
+  DEBUG_FUNCTION_PROGRESS();
     fastcall_call(pmt->write_list_end, protocol, Qnil);
-  } else if (ttype == TTYPE_SET) {
-    VALUE items;
+  } else if (fmd->type == TTYPE_SET) {
+      DEBUG_FUNCTION_PROGRESS();
+VALUE items;
 
     if (TYPE(value) == T_ARRAY) {
       items = value;
@@ -169,101 +161,114 @@ static void write_container(int ttype, VALUE field_info, VALUE value, VALUE prot
 
     sz = RARRAY_LEN(items);
 
-    VALUE element_type_info = rb_hash_aref(field_info, element_sym);
-    VALUE element_type_value = rb_hash_aref(element_type_info, type_sym);
-    int element_type = FIX2INT(element_type_value);
+    field_metadata* element_md = fmd->element;
+    int elementtype = element_md->type;
 
-    fastcall_call(pmt->write_set_begin, protocol, element_type_value, INT2FIX(sz));
+    fastcall_call(pmt->write_set_begin, protocol, INT2FIX(elementtype), INT2FIX(sz));
 
     for (i = 0; i < sz; i++) {
       VALUE val = rb_ary_entry(items, i);
-      if (IS_CONTAINER(element_type)) {
-        write_container(element_type, element_type_info, val, protocol, pmt);
-      } else {
-        write_anything_pmt(element_type, val, protocol, element_type_info, pmt);
-      }
+
+      write_anything(val, protocol, element_md, pmt);
     }
 
     fastcall_call(pmt->write_set_end, protocol, Qnil);
   } else {
-    rb_raise(rb_eNotImpError, "can't write container of type: %d", ttype);
+    rb_raise(rb_eNotImpError, "can't write container of type: %d", fmd->type);
   }
+
+  DEBUG_FUNCTION_EXIT();
 }
 
-static void write_anything_pmt(int ttype, VALUE value, VALUE protocol, VALUE field_info, protocol_method_table *pmt) {
-  if (ttype == TTYPE_BOOL) {
+static void write_anything(VALUE value, VALUE protocol, field_metadata* fmd, protocol_method_table *pmt) {
+  DEBUG_FUNCTION_ENTRY();
+
+  if (fmd->type == TTYPE_BOOL) {
     fastcall_call(pmt->write_bool, protocol, value);
-  } else if (ttype == TTYPE_BYTE) {
+  } else if (fmd->type == TTYPE_BYTE) {
     fastcall_call(pmt->write_byte, protocol, value);
-  } else if (ttype == TTYPE_I16) {
+  } else if (fmd->type == TTYPE_I16) {
     fastcall_call(pmt->write_i16, protocol, value);
-  } else if (ttype == TTYPE_I32) {
+  } else if (fmd->type == TTYPE_I32) {
     fastcall_call(pmt->write_i32, protocol, value);
-  } else if (ttype == TTYPE_I64) {
+  } else if (fmd->type == TTYPE_I64) {
     fastcall_call(pmt->write_i64, protocol, value);
-  } else if (ttype == TTYPE_DOUBLE) {
+  } else if (fmd->type == TTYPE_DOUBLE) {
     fastcall_call(pmt->write_double, protocol, value);
-  } else if (ttype == TTYPE_STRING) {
+  } else if (fmd->type == TTYPE_STRING) {
     fastcall_call(pmt->write_string, protocol, value);
-  } else if (IS_CONTAINER(ttype)) {
-    write_container(ttype, field_info, value, protocol, pmt);
-  } else if (ttype == TTYPE_STRUCT) {
+  } else if (IS_CONTAINER(fmd->type)) {
+    write_container(fmd, value, protocol, pmt);
+  } else if (fmd->type == TTYPE_STRUCT) {
     if (rb_obj_is_kind_of(value, thrift_union_class)) {
       union_write(value, protocol, pmt);
     } else {
       struct_write(value, protocol, pmt);
     }
   } else {
-    rb_raise(rb_eNotImpError, "Unknown type for binary_encoding: %d", ttype);
+    rb_raise(rb_eNotImpError, "Unknown type for binary_encoding: %d", fmd->type);
   }
+
+  DEBUG_FUNCTION_EXIT();
 }
 
 
 
 static VALUE struct_write(VALUE self, VALUE protocol, protocol_method_table* pmt)
 {
+  DEBUG_FUNCTION_ENTRY();
   // call validate
   rb_funcall(self, validate_method_id, 0);
 
   // write struct begin
   fastcall_call(pmt->write_struct_begin, protocol, rb_class_name(CLASS_OF(self)));
 
+
   // iterate through all the fields here
-  VALUE struct_fields = STRUCT_FIELDS(self);
-  VALUE sorted_field_ids = rb_funcall(self, sorted_field_ids_method_id, 0);
+  struct_metadata* md = getStructMetadata(CLASS_OF(self));
 
   int i = 0;
-  for (i=0; i < RARRAY_LEN(sorted_field_ids); i++) {
-    VALUE field_id = rb_ary_entry(sorted_field_ids, i);
+  for (i=0; i < getMetadataFieldCount(md); i++) {
 
-    VALUE field_info = rb_hash_aref(struct_fields, field_id);
+    field_metadata* fmd = getFieldMetadataByIndex(md, i);
 
-    VALUE ttype_value = rb_hash_aref(field_info, type_sym);
-    int ttype = FIX2INT(ttype_value);
-    VALUE field_name = rb_hash_aref(field_info, name_sym);
-
-    VALUE field_value = get_field_value(self, field_name);
+    DEBUGF("name=%s", fmd->name);
+    VALUE field_value = get_field_value(self, fmd->name);
+    VALUE field_name = rb_str_new_cstr(fmd->name);
+    DEBUGF("type=%d", TYPE(field_value));
+    DEBUG_FUNCTION_PROGRESS();
 
     if (!NIL_P(field_value)) {
-      fastcall_call(pmt->write_field_begin, protocol, field_name, ttype_value, field_id);
+    DEBUG_FUNCTION_PROGRESS();
+      fastcall_call(pmt->write_field_begin, protocol, field_name, INT2NUM(fmd->type), INT2NUM(fmd->id));
+    DEBUG_FUNCTION_PROGRESS();
 
-      write_anything_pmt(ttype, field_value, protocol, field_info, pmt);
+      write_anything(field_value, protocol, fmd, pmt);
+    DEBUG_FUNCTION_PROGRESS();
 
       fastcall_call(pmt->write_field_end, protocol, Qnil);
+    DEBUG_FUNCTION_PROGRESS();
     }
   }
 
+    DEBUG_FUNCTION_PROGRESS();
   fastcall_call(pmt->write_field_stop, protocol, Qnil);
+    DEBUG_FUNCTION_PROGRESS();
 
   // write struct end
   fastcall_call(pmt->write_struct_end, protocol, Qnil);
+    DEBUG_FUNCTION_PROGRESS();
 
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
+
 }
 
 
 static VALUE rb_struct_write(VALUE self, VALUE protocol) {
   DEBUG_FUNCTION_ENTRY();
+
   protocol_method_table* pmt;
 
   //We haven't been supplied with a method table, try retrieving it...
@@ -278,7 +283,10 @@ static VALUE rb_struct_write(VALUE self, VALUE protocol) {
     pmt = &default_table;
   }
 
-  return struct_write(self, protocol, pmt);
+  struct_write(self, protocol, pmt);
+  DEBUG_FUNCTION_EXIT();
+
+  return Qnil;
 }
 
 //-------------------------------------------
@@ -293,13 +301,19 @@ static VALUE union_read(VALUE self, VALUE protocol, protocol_method_table *pmt);
 static void skip_map_contents(VALUE protocol, VALUE key_type_value, VALUE value_type_value, int size);
 static void skip_list_or_set_contents(VALUE protocol, VALUE element_type_value, int size);
 
-static void set_field_value(VALUE obj, VALUE field_name, VALUE value) {
-  char name_buf[RSTRING_LEN(field_name) + 2];
+static void set_field_value(VALUE obj, char* field_name, VALUE value) {
+  DEBUG_FUNCTION_ENTRY();
+
+  char name_buf[strlen(field_name) + 2];
 
   name_buf[0] = '@';
-  strlcpy(&name_buf[1], RSTRING_PTR(field_name), RSTRING_LEN(field_name)+1);
+  strcpy(&name_buf[1], field_name);
 
   rb_ivar_set(obj, rb_intern(name_buf), value);
+
+  DEBUGF("%s ==> %s", field_name, RSTRING_PTR(rb_inspect(value)));
+
+  DEBUG_FUNCTION_EXIT();
 }
 
 // Helper method to skip the contents of a map (assumes the map header has been read).
@@ -319,33 +333,33 @@ static void skip_list_or_set_contents(VALUE protocol, VALUE element_type_value, 
   }
 }
 
-static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, protocol_method_table *pmt) {
+static VALUE read_anything(VALUE protocol, field_metadata* fmd, protocol_method_table *pmt) {
   VALUE result = Qnil;
 
-  if (ttype == TTYPE_BOOL) {
+  if (fmd->type == TTYPE_BOOL) {
     result = fastcall_call(pmt->read_bool, protocol, Qnil);
-  } else if (ttype == TTYPE_BYTE) {
+  } else if (fmd->type == TTYPE_BYTE) {
     result = fastcall_call(pmt->read_byte, protocol, Qnil);
-  } else if (ttype == TTYPE_I16) {
+  } else if (fmd->type == TTYPE_I16) {
     result = fastcall_call(pmt->read_i16, protocol, Qnil);
-  } else if (ttype == TTYPE_I32) {
+  } else if (fmd->type == TTYPE_I32) {
     result = fastcall_call(pmt->read_i32, protocol, Qnil);
-  } else if (ttype == TTYPE_I64) {
+  } else if (fmd->type == TTYPE_I64) {
     result = fastcall_call(pmt->read_i64, protocol, Qnil);
-  } else if (ttype == TTYPE_STRING) {
+  } else if (fmd->type == TTYPE_STRING) {
     result = fastcall_call(pmt->read_string, protocol, Qnil);
-  } else if (ttype == TTYPE_DOUBLE) {
+  } else if (fmd->type == TTYPE_DOUBLE) {
     result = fastcall_call(pmt->read_double, protocol, Qnil);
-  } else if (ttype == TTYPE_STRUCT) {
-    VALUE klass = rb_hash_aref(field_info, class_sym);
-    result = rb_class_new_instance(0, NULL, klass);
+  } else if (fmd->type == TTYPE_STRUCT) {
+
+    result = rb_class_new_instance(0, NULL, fmd->klass_v);
 
     if (rb_obj_is_kind_of(result, thrift_union_class)) {
       union_read(result, protocol, pmt);
     } else {
       struct_read(result, protocol, pmt);
     }
-  } else if (ttype == TTYPE_MAP) {
+  } else if (fmd->type == TTYPE_MAP) {
     int i;
 
     VALUE map_header = fastcall_call(pmt->read_map_begin, protocol, Qnil);
@@ -355,20 +369,20 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
 
     // Check the declared key and value types against the expected ones and skip the map contents
     // if the types don't match.
-    VALUE key_info = rb_hash_aref(field_info, key_sym);
-    VALUE value_info = rb_hash_aref(field_info, value_sym);
+    field_metadata* key_md = fmd->key;
+    field_metadata* value_md = fmd->value;
 
-    if (!NIL_P(key_info) && !NIL_P(value_info)) {
-      int specified_key_type = FIX2INT(rb_hash_aref(key_info, type_sym));
-      int specified_value_type = FIX2INT(rb_hash_aref(value_info, type_sym));
+    if (key_md && value_md) {
+      int specified_key_type = key_md->type;
+      int specified_value_type = value_md->type;
       if (num_entries == 0 || (specified_key_type == key_ttype && specified_value_type == value_ttype)) {
         result = rb_hash_new();
 
         for (i = 0; i < num_entries; ++i) {
           VALUE key, val;
 
-          key = read_anything_pmt(protocol, key_ttype, key_info, pmt);
-          val = read_anything_pmt(protocol, value_ttype, value_info, pmt);
+          key = read_anything(protocol, key_md, pmt);
+          val = read_anything(protocol, value_md, pmt);
 
           rb_hash_aset(result, key, val);
         }
@@ -380,7 +394,7 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
     }
 
     fastcall_call(pmt->read_map_end, protocol, Qnil);
-  } else if (ttype == TTYPE_LIST) {
+  } else if (fmd->type == TTYPE_LIST) {
     int i;
 
     VALUE list_header = fastcall_call(pmt->read_list_begin, protocol, Qnil);
@@ -389,14 +403,15 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
 
     // Check the declared element type against the expected one and skip the list contents
     // if the types don't match.
-    VALUE element_info = rb_hash_aref(field_info, element_sym);
-    if (!NIL_P(element_info)) {
-      int specified_element_type = FIX2INT(rb_hash_aref(element_info, type_sym));
+    field_metadata* element_md = fmd->element;
+
+    if (element_md) {
+      int specified_element_type = element_md->type;
       if (specified_element_type == element_ttype) {
         result = rb_ary_new2(num_elements);
 
         for (i = 0; i < num_elements; ++i) {
-          rb_ary_push(result, read_anything_pmt(protocol, element_ttype, rb_hash_aref(field_info, element_sym), pmt));
+          rb_ary_push(result, read_anything(protocol, element_md, pmt));
         }
       } else {
         skip_list_or_set_contents(protocol, INT2FIX(element_ttype), num_elements);
@@ -406,7 +421,7 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
     }
 
     fastcall_call(pmt->read_list_end, protocol, Qnil);
-  } else if (ttype == TTYPE_SET) {
+  } else if (fmd->type == TTYPE_SET) {
     VALUE items;
     int i;
 
@@ -416,14 +431,14 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
 
     // Check the declared element type against the expected one and skip the set contents
     // if the types don't match.
-    VALUE element_info = rb_hash_aref(field_info, element_sym);
-    if (!NIL_P(element_info)) {
-      int specified_element_type = FIX2INT(rb_hash_aref(element_info, type_sym));
+    field_metadata* element_md = fmd->element;
+    if (element_md) {
+      int specified_element_type = element_md->type;
       if (specified_element_type == element_ttype) {
         items = rb_ary_new2(num_elements);
 
         for (i = 0; i < num_elements; ++i) {
-          rb_ary_push(items, read_anything_pmt(protocol, element_ttype, rb_hash_aref(field_info, element_sym), pmt));
+          rb_ary_push(items, read_anything(protocol, element_md, pmt));
         }
 
         result = rb_class_new_instance(1, &items, rb_cSet);
@@ -436,7 +451,7 @@ static VALUE read_anything_pmt(VALUE protocol, int ttype, VALUE field_info, prot
 
     fastcall_call(pmt->read_set_end, protocol, Qnil);
   } else {
-    rb_raise(rb_eNotImpError, "read_anything not implemented for type %d!", ttype);
+    rb_raise(rb_eNotImpError, "read_anything not implemented for type %d!", fmd->type);
   }
 
   return result;
@@ -447,28 +462,30 @@ static VALUE struct_read(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // read struct begin
   fastcall_call(pmt->read_struct_begin, protocol, Qnil);
 
-  VALUE struct_fields = STRUCT_FIELDS(self);
+  struct_metadata* md = getStructMetadata(CLASS_OF(self));
 
   // read each field
   while (true) {
     VALUE field_header = fastcall_call(pmt->read_field_begin, protocol, Qnil);
-    VALUE field_type_value = rb_ary_entry(field_header, 1);
-    int field_type = FIX2INT(field_type_value);
 
+    VALUE field_type_value = rb_ary_entry(field_header, 1);
+    VALUE field_id_value = rb_ary_entry(field_header, 2);
+
+    int field_type = FIX2INT(field_type_value);
     if (field_type == TTYPE_STOP) {
       break;
     }
 
-    // make sure we got a type we expected
-    VALUE field_info = rb_
-    hash_aref(struct_fields, rb_ary_entry(field_header, 2));
 
-    if (!NIL_P(field_info)) {
-      int specified_type = FIX2INT(rb_hash_aref(field_info, type_sym));
+    // make sure we got a type we expected
+    int field_id = FIX2INT(field_id_value);
+    field_metadata *fmd = getFieldMetadataByID(md, field_id);
+
+    if (fmd) {
+      int specified_type = fmd->type;
       if (field_type == specified_type) {
         // read the value
-        VALUE name = rb_hash_aref(field_info, name_sym);
-        set_field_value(self, name, read_anything_pmt(protocol, field_type, field_info, pmt));
+        set_field_value(self, fmd->name, read_anything(protocol, fmd, pmt));
       } else {
         rb_funcall(protocol, skip_method_id, 1, field_type_value);
       }
@@ -501,7 +518,10 @@ static VALUE rb_struct_read(VALUE self, VALUE protocol) {
   else
     pmt = &default_table;
 
-  return struct_read(self, protocol, pmt);
+  VALUE ret = struct_read(self, protocol, pmt);
+
+  DEBUG_FUNCTION_EXIT();
+  return ret;
 }
 
 
@@ -518,22 +538,27 @@ static VALUE union_read(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // read struct begin
   fastcall_call(pmt->read_struct_begin, protocol, Qnil);
 
-  VALUE struct_fields = STRUCT_FIELDS(self);
+  struct_metadata* md = getStructMetadata(CLASS_OF(self));
 
   VALUE field_header = fastcall_call(pmt->read_field_begin, protocol, Qnil);
+
   VALUE field_type_value = rb_ary_entry(field_header, 1);
+  VALUE field_id_value = rb_ary_entry(field_header, 2);
+
   int field_type = FIX2INT(field_type_value);
+  int field_id = FIX2INT(field_id_value);
+
+
+  field_metadata *fmd = getFieldMetadataByID(md, field_id);
 
   // make sure we got a type we expected
-  VALUE field_info = rb_hash_aref(struct_fields, rb_ary_entry(field_header, 2));
-
-  if (!NIL_P(field_info)) {
-    int specified_type = FIX2INT(rb_hash_aref(field_info, type_sym));
+  if (fmd) {
+    int specified_type = fmd->type;
     if (field_type == specified_type) {
       // read the value
-      VALUE name = rb_hash_aref(field_info, name_sym);
-      rb_iv_set(self, "@setfield", ID2SYM(rb_intern(RSTRING_PTR(name))));
-      rb_iv_set(self, "@value", read_anything_pmt(protocol, field_type, field_info, pmt));
+      char* name = fmd->name;
+      rb_iv_set(self, "@setfield", ID2SYM(rb_intern(name)));
+      rb_iv_set(self, "@value", read_anything(protocol, fmd, pmt));
     } else {
       rb_funcall(protocol, skip_method_id, 1, field_type_value);
     }
@@ -558,6 +583,7 @@ static VALUE union_read(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // call validate
   rb_funcall(self, validate_method_id, 0);
 
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -578,11 +604,15 @@ static VALUE rb_union_read(VALUE self, VALUE protocol) {
     pmt = &default_table;
   }
 
-  return union_read(self, protocol, pmt);
+  VALUE ret = union_read(self, protocol, pmt);
+
+  DEBUG_FUNCTION_EXIT();
+  return ret;
 }
 
 static VALUE union_write(VALUE self, VALUE protocol, protocol_method_table *pmt)
 {
+  DEBUG_FUNCTION_ENTRY();
   // call validate
   rb_funcall(self, validate_method_id, 0);
 
@@ -590,20 +620,19 @@ static VALUE union_write(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // write struct begin
   fastcall_call(pmt->write_struct_begin, protocol, rb_class_name(CLASS_OF(self)));
 
-  VALUE struct_fields = STRUCT_FIELDS(self);
+  struct_metadata* md = getStructMetadata(CLASS_OF(self));
 
   VALUE setfield = rb_ivar_get(self, setfield_id);
   VALUE setvalue = rb_ivar_get(self, setvalue_id);
-  VALUE field_id = rb_funcall(self, name_to_id_method_id, 1, rb_funcall(setfield, to_s_method_id, 0));
 
-  VALUE field_info = rb_hash_aref(struct_fields, field_id);
+  field_metadata* fmd = getFieldMetadataByName(md, RSTRING_PTR(rb_funcall(setfield, to_s_method_id, 0)));
 
-  VALUE ttype_value = rb_hash_aref(field_info, type_sym);
-  int ttype = FIX2INT(ttype_value);
+  int ttype = fmd->type;
+  int field_id = fmd->id;
 
-  fastcall_call(pmt->write_field_begin, protocol, setfield, ttype_value, field_id);
+  fastcall_call(pmt->write_field_begin, protocol, setfield, INT2NUM(ttype), INT2NUM(field_id));
 
-  write_anything_pmt(ttype, setvalue, protocol, field_info, pmt);
+  write_anything(setvalue, protocol, fmd, pmt);
 
   fastcall_call(pmt->write_field_end, protocol, Qnil);
 
@@ -612,6 +641,7 @@ static VALUE union_write(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // write struct end
   fastcall_call(pmt->write_struct_end, protocol, Qnil);
 
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -631,7 +661,9 @@ static VALUE rb_union_write(VALUE self, VALUE protocol) {
     pmt = &default_table;
   }
 
-  return union_write(self, protocol, pmt);
+  VALUE ret = union_write(self, protocol, pmt);
+  DEBUG_FUNCTION_EXIT();
+  return ret;
 }
 
 static void Init_default_table()
