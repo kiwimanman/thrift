@@ -54,6 +54,7 @@ describe 'Processor' do
       e.should_receive(:write).with(@prot).ordered
       Thrift::ApplicationException.should_receive(:new).with(Thrift::ApplicationException::UNKNOWN_METHOD, "Unknown function testMessage").and_return(e)
       @prot.should_receive(:write_message_end).ordered
+      @prot.should_receive(:flush)
       mock_trans(@prot)
       @processor.process(@prot, @prot)
     end
@@ -73,6 +74,7 @@ describe 'Processor' do
       result = mock("MockResult")
       result.should_receive(:write).with(@prot).ordered
       @prot.should_receive(:write_message_end).ordered
+      @prot.should_receive(:flush)
       mock_trans(@prot)
       @processor.write_result(result, @prot, 'testMessage', 23)
     end

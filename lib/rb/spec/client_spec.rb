@@ -43,6 +43,7 @@ describe 'Client' do
       mock_args.should_receive(:bar=).with(42)
       mock_args.should_receive(:write).with(@prot)
       @prot.should_receive(:write_message_end)
+      @prot.should_receive(:flush)
       @prot.should_receive(:trans) do
         mock('trans').tap do |trans|
           trans.should_receive(:flush)

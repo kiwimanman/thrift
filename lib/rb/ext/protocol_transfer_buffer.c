@@ -5,13 +5,7 @@
 
 #define DEBUG 0
 
-#if DEBUG
-  #define DEBUG_FUNCTION_ENTRY() printf("buffered %s\n", __FUNCTION__);
-  #define DEBUG_FUNCTION_PROGRESS() printf("%s, %s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-#else
-  #define DEBUG_FUNCTION_ENTRY()
-  #define DEBUG_FUNCTION_PROGRESS() 
-#endif
+#include "debug.h"
 
 //#define LOG_FUNC()
 
@@ -60,7 +54,11 @@ static int protocol_read(protocol_transfer* pt, char* buffer, int length)
 	DEBUG_FUNCTION_ENTRY();
 	buffer_data* data = (buffer_data*)pt->data;
 
-	if (length == 0) return 0;
+	if (length == 0)
+	{
+		DEBUG_FUNCTION_EXIT();
+		return 0;
+	}
 
 	//Do we have data in the read buffer?
 	if (data->read_buffer_idx == data->read_buffer_sz)
@@ -80,14 +78,27 @@ static int protocol_read(protocol_transfer* pt, char* buffer, int length)
 	data->read_buffer_idx+= rsz;
 
 	//Make sure we read everything that is requested, even if the buffer holds *some* data, but not enough.
-	return rsz + protocol_read(pt, buffer + rsz, length - rsz);
+	int r =  rsz + protocol_read(pt, buffer + rsz, length - rsz);
+
+	DEBUG_FUNCTION_EXIT();
+	return r;
 }
 
 static void protocol_write(protocol_transfer* pt, char* buf, int length)
 {
+	DEBUG_FUNCTION_ENTRY();
+
 	buffer_data* data = (buffer_data*)pt->data;
 
-	if (length == 0) return;
+	if (length == 0) 
+	{
+		DEBUG_FUNCTION_EXIT();
+		return;
+	}
+
+	if (data->write_bufer_idx == RSTRING_LEN(data->wbuf))
+		protocol_flush(pt);
+
 
 	int tsize = MIN(length, BUFFER_LEN - data->write_bufer_idx);
 
@@ -95,18 +106,33 @@ static void protocol_write(protocol_transfer* pt, char* buf, int length)
 	data->write_bufer_idx += tsize;
 
 	protocol_write(pt, buf + tsize, length - tsize);
+
+	DEBUG_FUNCTION_EXIT();
 }
 
 static void protocol_flush(protocol_transfer* pt)
 {
+	DEBUG_FUNCTION_ENTRY();
+
 	buffer_data* data = (buffer_data*)pt->data;
 
 	if (data->write_bufer_idx == RSTRING_LEN(data->wbuf))
+	{
+		DEBUG_FUNCTION_PROGRESS();
 		rb_funcall(data->transport, write_method_id, 1, data->wbuf);
+		DEBUG_FUNCTION_PROGRESS();
+
+	}
 	else
+	{
+		DEBUG_FUNCTION_PROGRESS();
 		rb_funcall(data->transport, write_method_id, 1, rb_str_new(RSTRING_PTR(data->wbuf), data->write_bufer_idx));
+		DEBUG_FUNCTION_PROGRESS();
+	}
 
 	data->write_bufer_idx = 0;
+
+	DEBUG_FUNCTION_EXIT();
 }
 
 

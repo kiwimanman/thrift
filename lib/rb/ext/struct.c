@@ -24,9 +24,9 @@
 #include "ruby_ptr.h"
 #include "struct_metadata.h"
 
- #define DEBUG 0
+#define DEBUG 0
 
- #include "debug.h"
+#include "debug.h"
 
 
 
@@ -259,6 +259,7 @@ static VALUE struct_write(VALUE self, VALUE protocol, protocol_method_table* pmt
   fastcall_call(pmt->write_struct_end, protocol, Qnil);
     DEBUG_FUNCTION_PROGRESS();
 
+  fastcall_call(pmt->flush, protocol, Qnil);
 
   DEBUG_FUNCTION_EXIT();
   return Qnil;
@@ -641,6 +642,7 @@ static VALUE union_write(VALUE self, VALUE protocol, protocol_method_table *pmt)
   // write struct end
   fastcall_call(pmt->write_struct_end, protocol, Qnil);
 
+  fastcall_call(pmt->flush, protocol, Qnil);
   DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
@@ -705,6 +707,8 @@ static void Init_default_table()
   fastcall_init_ruby(default_table.read_struct_begin, rb_intern("read_struct_begin"), 0);
   fastcall_init_ruby(default_table.read_struct_end, rb_intern("read_struct_end"), 0);
   fastcall_init_ruby(default_table.read_string, rb_intern("read_string"), 0);
+
+  fastcall_init_ruby(default_table.flush, rb_intern("flush"), 0);
 }
 
 void Init_struct() {

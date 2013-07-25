@@ -89,8 +89,12 @@ int pop_last_field_id(compact_data* cdata)
 
         DEBUG_FUNCTION_ENTRY();
 
-        //if (cdata->last_field_index <= 0) return 0;
-        if (cdata->last_field_index <= 0) rb_bug("Structure nesting corrupt!");
+        if (cdata->last_field_index <= 0)
+        {
+          rb_warn("Structure nesting missing or corrupt (ignore if you are writing naked fields)!");
+          return 0;
+        } 
+        //if (cdata->last_field_index <= 0) rb_bug("Structure nesting corrupt!");
 
         cdata->last_field_index--;
 
@@ -143,14 +147,19 @@ static int get_compact_type(VALUE type_value) {
 
 static void transfer_write_byte(compact_data* data, int8_t b)
 { 
+   DEBUG_FUNCTION_ENTRY();
+   DEBUGF("byte = %d", b);
    protocol_transfer *pt = data->pt;
    pt->write(pt, (char*)&b, 1);
+   DEBUG_FUNCTION_EXIT();
 }
 
 static void transfer_write_bytes(compact_data* data, char* ba, int sz)
 {
+   DEBUG_FUNCTION_ENTRY();
    protocol_transfer *pt = data->pt;
    pt->write(pt, ba, sz); 
+   DEBUG_FUNCTION_EXIT();
 }
 
 static void transfer_flush(compact_data* data)
@@ -158,25 +167,40 @@ static void transfer_flush(compact_data* data)
   DEBUG_FUNCTION_ENTRY();
   protocol_transfer *pt = data->pt; 
   pt->flush(pt);
+  DEBUG_FUNCTION_EXIT();
 }
 
 static char transfer_read_byte(compact_data* data)
 {
   char b;
 
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   protocol_transfer *pt = data->pt; 
   pt->read(pt, &b, 1);
 
+  DEBUG_FUNCTION_EXIT();
   return b;
 }
 
 static int transfer_read_bytes(compact_data* data, char* buf, int len)
 {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   protocol_transfer *pt = data->pt; 
 
-  return pt->read(pt, buf, len);
+  int r = pt->read(pt, buf, len);
+  DEBUG_FUNCTION_EXIT();
+
+  return r;
+}
+
+static VALUE rb_flush(VALUE self)
+{
+   DEBUG_FUNCTION_ENTRY();
+   compact_data* cd = get_cdata(self);
+   transfer_flush(cd);
+
+   DEBUG_FUNCTION_EXIT();
+   return Qnil;
 }
 
 
@@ -205,12 +229,17 @@ static void write_field_begin_internal(compact_data* cd, VALUE type, VALUE id_va
 
 static int32_t int_to_zig_zag(int32_t n) {
   DEBUG_FUNCTION_ENTRY();
-  return (n << 1) ^ (n >> 31);
+  int r = (n << 1) ^ (n >> 31);
+  DEBUG_FUNCTION_EXIT();
+
+  return r;
 }
 
 static uint64_t ll_to_zig_zag(int64_t n) {
   DEBUG_FUNCTION_ENTRY();
-  return (n << 1) ^ (n >> 63);
+  int64_t r = (n << 1) ^ (n >> 63);
+  DEBUG_FUNCTION_EXIT();
+  return r;
 }
 
 static void write_varint32(compact_data* cdata, uint32_t n) {
@@ -224,6 +253,7 @@ static void write_varint32(compact_data* cdata, uint32_t n) {
       n = n >> 7;
     }
   }
+  DEBUG_FUNCTION_EXIT();
 }
 
 static void write_varint64(compact_data* cd, uint64_t n) {
@@ -237,6 +267,7 @@ static void write_varint64(compact_data* cd, uint64_t n) {
       n = n >> 7;
     }
   }
+  DEBUG_FUNCTION_EXIT();
 }
 static void write_collection_begin(compact_data* cdata, VALUE elem_type, VALUE size_value) {
    DEBUG_FUNCTION_ENTRY();
@@ -247,6 +278,8 @@ static void write_collection_begin(compact_data* cdata, VALUE elem_type, VALUE s
     transfer_write_byte(cdata, 0xf0 | get_compact_type(elem_type));
     write_varint32(cdata, size);
   }
+
+  DEBUG_FUNCTION_EXIT();
 }
 
 
@@ -266,8 +299,10 @@ static VALUE write_binary(compact_data *cdata, VALUE buf);
 static VALUE rb_write_message_end(VALUE self) {
   DEBUG_FUNCTION_ENTRY();
 
-  compact_data* cd = get_cdata(self);
-  transfer_flush(cd);
+ // compact_data* cd = get_cdata(self);
+//  transfer_flush(cd);
+
+  DEBUG_FUNCTION_EXIT();
 
   return Qnil;
 }
@@ -279,6 +314,8 @@ static VALUE rb_write_struct_begin(VALUE self, VALUE name)
   compact_data* cd = get_cdata(self);
 
   push_last_field_id(cd, 0);
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -288,6 +325,8 @@ static VALUE rb_write_struct_end(VALUE self) {
   compact_data* cd = get_cdata(self);
 
   (void)pop_last_field_id(cd);
+
+  DEBUG_FUNCTION_EXIT();
 
   return Qnil;
 }
@@ -320,6 +359,8 @@ static VALUE rb_write_message_begin(VALUE self, VALUE name, VALUE type, VALUE se
   write_varint32(cd, FIX2INT(seqid));
   write_string(cd, name);
 
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -338,6 +379,8 @@ static VALUE rb_write_field_begin(VALUE self, VALUE name, VALUE type, VALUE id) 
     write_field_begin_internal(cd, type, id, Qnil);
   }
 
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -345,7 +388,9 @@ static VALUE rb_write_field_stop(VALUE self) {
   DEBUG_FUNCTION_ENTRY();
     compact_data* cd = get_cdata(self);
   transfer_write_byte(cd, TTYPE_STOP);
-  transfer_flush(cd);
+ // transfer_flush(cd);
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -360,6 +405,8 @@ static VALUE rb_write_map_begin(VALUE self, VALUE ktype, VALUE vtype, VALUE size
     write_varint32(cd, size);
     transfer_write_byte(cd, get_compact_type(ktype) << 4 | get_compact_type(vtype));
   }
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -367,6 +414,8 @@ static VALUE rb_write_list_begin(VALUE self, VALUE etype, VALUE size) {
   DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self); 
   write_collection_begin(cd, etype, size);
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -374,6 +423,8 @@ static VALUE rb_write_set_begin(VALUE self, VALUE etype, VALUE size) {
   DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self); 
   write_collection_begin(cd, etype, size);
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -390,22 +441,27 @@ static VALUE rb_write_bool(VALUE self, VALUE b) {
     write_field_begin_internal(cd, cd->current_field_type, cd->current_field_id, INT2FIX(type));
     cd->current_field_active = 0;
   }
+
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
 static VALUE rb_write_byte(VALUE self, VALUE byte) {
   DEBUG_FUNCTION_ENTRY();
- compact_data* cd = get_cdata(self);   
+  compact_data* cd = get_cdata(self);   
   CHECK_NIL(byte);
   transfer_write_byte(cd, FIX2INT(byte));
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
 
 
 static VALUE write_i16(compact_data* cdata, VALUE i16) {
-   DEBUG_FUNCTION_ENTRY();
- write_i32(cdata, i16);
+  DEBUG_FUNCTION_ENTRY();
+  write_i32(cdata, i16);
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -413,12 +469,17 @@ static VALUE write_i32(compact_data *cdata, VALUE i32) {
   DEBUG_FUNCTION_ENTRY();
   CHECK_NIL(i32);
   write_varint32(cdata, int_to_zig_zag(NUM2INT(i32)));
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
 static VALUE rb_write_i16(VALUE self, VALUE i16) {
   DEBUG_FUNCTION_ENTRY();
-  return rb_write_i32(self, i16);
+  
+  rb_write_i32(self, i16);
+
+  DEBUG_FUNCTION_EXIT();
+  return Qnil;
 }
 
 static VALUE rb_write_i32(VALUE self, VALUE i32) {
@@ -427,6 +488,8 @@ static VALUE rb_write_i32(VALUE self, VALUE i32) {
 
   CHECK_NIL(i32);
   write_varint32(cd, int_to_zig_zag(NUM2INT(i32)));
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -436,6 +499,8 @@ static VALUE rb_write_i64(VALUE self, VALUE i64) {
 
   CHECK_NIL(i64);
   write_varint64(cd, ll_to_zig_zag(NUM2LL(i64)));
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -461,6 +526,8 @@ static VALUE rb_write_double(VALUE self, VALUE dub) {
   buf[7] = (transfer.l >> 56) & 0xff;
   transfer_write_bytes(cd, buf, 8);
 
+  DEBUG_FUNCTION_EXIT();
+
   return Qnil;
 }
 
@@ -469,6 +536,7 @@ static VALUE write_string(compact_data* cdata, VALUE str) {
   DEBUG_FUNCTION_ENTRY();
   str = convert_to_utf8_byte_buffer(str);
   write_binary(cdata, str);
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
@@ -479,20 +547,29 @@ static VALUE write_binary(compact_data* cdata, VALUE buf) {
  buf = force_binary_encoding(buf);
   write_varint32(cdata, RSTRING_LEN(buf));
   transfer_write_bytes(cdata, RSTRING_PTR(buf), RSTRING_LEN(buf));
+  DEBUG_FUNCTION_EXIT();
   return Qnil;
 }
 
 static VALUE rb_write_string(VALUE self, VALUE str) {
   DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
-  return write_string(cd, str);
+
+  write_string(cd, str);
+
+  DEBUG_FUNCTION_EXIT();
+  return Qnil;
 }
 
 
 static VALUE rb_write_binary(VALUE self, VALUE buf) {
    DEBUG_FUNCTION_ENTRY();
  compact_data* cd = get_cdata(self);   
-  return write_binary(cd, buf);
+  write_binary(cd, buf);
+
+  DEBUG_FUNCTION_EXIT();
+  return Qnil;
+
 }
 /*
 //---------------------------------------
@@ -550,7 +627,7 @@ static int32_t zig_zag_to_int(int32_t n) {
 
 
 static int64_t read_varint64(compact_data* cd) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   int shift = 0;
   int64_t result = 0;
   while (true) {
@@ -561,6 +638,9 @@ static int64_t read_varint64(compact_data* cd) {
     }
     shift += 7;
   }
+
+  DEBUGF("%llu", (long long unsigned int)result);
+  DEBUG_FUNCTION_EXIT();
   return result;
 }
 
@@ -569,11 +649,15 @@ static int16_t read_i16(compact_data* cd) {
 }
 
 static VALUE get_protocol_exception(VALUE code, VALUE message) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   VALUE args[2];
   args[0] = code;
   args[1] = message;
-  return rb_class_new_instance(2, (VALUE*)&args, protocol_exception_class);
+
+  VALUE o = rb_class_new_instance(2, (VALUE*)&args, protocol_exception_class);
+
+  DEBUG_FUNCTION_EXIT();  
+  return o;
 }
 
 static VALUE rb_read_struct_begin(VALUE self) {
@@ -582,6 +666,7 @@ static VALUE rb_read_struct_begin(VALUE self) {
                 
         push_last_field_id(cd, 0);
 
+        DEBUG_FUNCTION_EXIT();  
         return Qnil;
 }
 
@@ -591,6 +676,7 @@ static VALUE rb_read_struct_end(VALUE self) {
                 
         pop_last_field_id(cd);
         
+        DEBUG_FUNCTION_EXIT();  
         return Qnil;
 }
 
@@ -617,7 +703,7 @@ static VALUE rb_read_set_end(VALUE self) {
 }
 
 static VALUE rb_read_message_begin(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
 
   int8_t protocol_id = transfer_read_byte(cd);
@@ -644,11 +730,14 @@ static VALUE rb_read_message_begin(VALUE self) {
   int32_t seqid = read_varint64(cd);
 
   VALUE messageName = read_string(cd);
-  return rb_ary_new3(3, messageName, INT2FIX(type), INT2NUM(seqid));
+
+  VALUE arr = rb_ary_new3(3, messageName, INT2FIX(type), INT2NUM(seqid));
+  DEBUG_FUNCTION_EXIT();  
+  return arr;
 }
 
 static VALUE rb_read_field_begin(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
 
   int8_t type = transfer_read_byte(cd);
@@ -679,7 +768,9 @@ static VALUE rb_read_field_begin(VALUE self) {
 
     // push the new field onto the field stack so we can keep the deltas going.
     push_last_field_id(cd, field_id);
-    return rb_ary_new3(3, Qnil, INT2FIX(get_ttype(type & 0x0f)), INT2FIX(field_id));
+    VALUE arr = rb_ary_new3(3, Qnil, INT2FIX(get_ttype(type & 0x0f)), INT2FIX(field_id));
+    DEBUG_FUNCTION_EXIT();  
+    return arr;
   }
 }
 
@@ -689,7 +780,10 @@ static VALUE rb_read_map_begin(VALUE self) {
 
   int32_t size = read_varint64(cd);
   uint8_t key_and_value_type = size == 0 ? 0 : transfer_read_byte(cd);
-  return rb_ary_new3(3, INT2FIX(get_ttype(key_and_value_type >> 4)), INT2FIX(get_ttype(key_and_value_type & 0xf)), INT2FIX(size));
+  VALUE arr = rb_ary_new3(3, INT2FIX(get_ttype(key_and_value_type >> 4)), INT2FIX(get_ttype(key_and_value_type & 0xf)), INT2FIX(size));
+  
+  DEBUG_FUNCTION_EXIT();  
+  return arr;
 }
 
 static VALUE rb_read_list_begin(VALUE self) {
@@ -702,23 +796,34 @@ static VALUE rb_read_list_begin(VALUE self) {
     size = read_varint64(cd);
   }
   uint8_t type = get_ttype(size_and_type & 0x0f);
-  return rb_ary_new3(2, INT2FIX(type), INT2FIX(size));
+  VALUE arr = rb_ary_new3(2, INT2FIX(type), INT2FIX(size));
+
+  DEBUG_FUNCTION_EXIT();  
+  return arr;
 }
 
 static VALUE rb_read_set_begin(VALUE self) {
   DEBUG_FUNCTION_ENTRY();
-  return rb_read_list_begin(self);
+  VALUE v = rb_read_list_begin(self);
+  
+  DEBUG_FUNCTION_EXIT();  
+  return v;
 }
 
 static VALUE rb_read_bool(VALUE self) {
-  compact_data* cd = get_cdata(self);   
   DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);   
+
 
   VALUE bool_value = cd->current_field_value;
   if (cd->current_field_active == 0) {
-    return transfer_read_byte(cd) == CTYPE_BOOLEAN_TRUE ? Qtrue : Qfalse;
+    VALUE r = transfer_read_byte(cd) == CTYPE_BOOLEAN_TRUE ? Qtrue : Qfalse;
+    DEBUG_FUNCTION_EXIT();
+    return r;
   } else {
     cd->current_field_active = 0;
+
+    DEBUG_FUNCTION_ENTRY();
     return bool_value;
   }
 }
@@ -726,45 +831,58 @@ static VALUE rb_read_bool(VALUE self) {
 
 
 static VALUE rb_read_byte(VALUE self) {
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
-  return INT2FIX(transfer_read_byte(cd));
+  VALUE v = INT2FIX(transfer_read_byte(cd));
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE rb_read_i16(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
-  return INT2FIX(read_i16(cd));
+  VALUE v = INT2FIX(read_i16(cd));
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE rb_read_i32(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
-  return INT2NUM(zig_zag_to_int(read_varint64(cd)));
+  VALUE v = INT2NUM(zig_zag_to_int(read_varint64(cd)));
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE rb_read_i64(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
-  return LL2NUM(zig_zag_to_ll(read_varint64(cd)));
+  VALUE v = LL2NUM(zig_zag_to_ll(read_varint64(cd)));
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE rb_read_double(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
 
   double f = 0;  // Avoid unitialized warning.
   transfer_read_bytes(cd, (char*)&f, 8);
-  return rb_float_new(f);
+  VALUE v = rb_float_new(f);
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE read_string(compact_data* cd) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   VALUE buffer = read_binary(cd);
-  return convert_to_string(buffer);
+  VALUE v = convert_to_string(buffer);
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE read_binary(compact_data* cd) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   int64_t size = read_varint64(cd);
 
   //Try allocating on stack if size is reasonable.
@@ -781,21 +899,26 @@ static VALUE read_binary(compact_data* cd) {
   if (size > 4096)
         free(buf);
 
+  DEBUG_FUNCTION_EXIT();
   return str;
 }
 
 static VALUE rb_read_string(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
 
-  return read_string(cd);
+  VALUE v = read_string(cd);
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 static VALUE rb_read_binary(VALUE self) {
-  DEBUG_FUNCTION_ENTRY()
+  DEBUG_FUNCTION_ENTRY();
   compact_data* cd = get_cdata(self);   
 
-  return read_binary(cd);
+  VALUE v = read_binary(cd);
+  DEBUG_FUNCTION_EXIT();
+  return v;
 }
 
 
@@ -878,6 +1001,8 @@ void Init_protocol_method_table()
   fastcall_init_c(method_table.read_struct_begin, (rfunc)rb_read_struct_begin);
   fastcall_init_c(method_table.read_struct_end, (rfunc)rb_read_struct_end);
   fastcall_init_c(method_table.read_string, (rfunc)rb_read_string);
+
+  fastcall_init_c(method_table.flush, (rfunc)rb_flush);
 }  
 
 
@@ -898,6 +1023,7 @@ void Init_layered_compact_protocol() {
   rb_define_method(bpa_class, "initialize", rb_initialize, 1);
 
   rb_define_method(bpa_class, "native?", rb_native_qmark, 0);
+  rb_define_method(bpa_class, "flush", rb_flush, 0);
 
   rb_define_method(bpa_class, "write_message_begin", rb_write_message_begin, 3);
   rb_define_method(bpa_class, "write_field_begin",   rb_write_field_begin, 3);

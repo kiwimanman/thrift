@@ -65,6 +65,8 @@ struct _protocol_method_table
 	fastcall read_struct_begin;
 	fastcall read_struct_end;
 	fastcall read_string;
+
+	fastcall flush;
 };
 
 void Init_struct();

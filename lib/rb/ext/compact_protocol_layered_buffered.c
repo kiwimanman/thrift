@@ -23,8 +23,8 @@ static VALUE rb_initialize(VALUE self, VALUE transport)
   char buf[BUFFER_LEN];
   VALUE rbuf = rb_str_new(buf, BUFFER_LEN);
   VALUE wbuf = rb_str_new(buf, BUFFER_LEN);
-  rb_ivar_set(self, rb_intern("@rbuf"), rbuf);
-  rb_ivar_set(self, rb_intern("@wbuf"), wbuf);
+  rb_ivar_set(self, rb_intern("@rbuf"), rbuf); //Avoid garbage collect
+  rb_ivar_set(self, rb_intern("@wbuf"), wbuf); //Avoid garbage collect
 
   get_cdata(self)->pt = buffer_transfer_create(transport, wbuf, rbuf);
   return self;

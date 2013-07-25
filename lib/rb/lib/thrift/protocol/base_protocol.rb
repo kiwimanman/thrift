@@ -202,6 +202,9 @@ module Thrift
       raise NotImplementedError
     end
 
+    def flush
+    end
+
     # Reads a Thrift Binary (Thrift String without encoding). In Ruby 1.9+, all Strings will be returned
     # with an Encoding of BINARY.
     #
@@ -320,6 +323,9 @@ module Thrift
     end
 
     def skip(type)
+
+      puts "PROTOCOL SKIP"
+
       case type
       when Types::STOP
         nil

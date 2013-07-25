@@ -227,6 +227,9 @@ module Thrift
       trans.read_all(size)
     end
 
+    def flush
+    end
+
   end
 
   class BinaryProtocolFactory < BaseProtocolFactory

@@ -756,6 +756,9 @@ module Thrift
     def read_binary
       read_json_base64
     end
+
+    def flush
+    end
   end
 
   class JsonProtocolFactory < BaseProtocolFactory

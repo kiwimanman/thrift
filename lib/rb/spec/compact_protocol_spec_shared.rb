@@ -17,37 +17,47 @@ shared_examples_for 'a compact protocol' do
     :double => [0.0, 1.0, -1.0, 1.1, -1.1, 10000000.1, 1.0/0.0, -1.0/0.0],
     :bool => [true, false]
   }
-=begin
+
   it "should encode and decode naked primitives correctly" do
     TESTS.each_pair do |primitive_type, test_values|
       test_values.each do |value|
+        @trans.reset_buffer
         # puts "testing #{value}" if primitive_type == :i64
-        trans = Thrift::MemoryBufferTransport.new
         proto = protocol_class.new(@trans)
         
         proto.send(writer(primitive_type), value)
+        proto.flush
+
         # puts "buf: #{trans.inspect_buffer}" if primitive_type == :i64
         read_back = proto.send(reader(primitive_type))
         read_back.should == value
       end
     end
   end
-  
+
   it "should encode and decode primitives in fields correctly" do
     TESTS.each_pair do |primitive_type, test_values|
+
       final_primitive_type = primitive_type == :binary ? :string : primitive_type
       thrift_type = Thrift::Types.const_get(final_primitive_type.to_s.upcase)
+
       # puts primitive_type
       test_values.each do |value|
+
         trans = Thrift::MemoryBufferTransport.new
         proto = protocol_class.new(@trans)
 
+        proto.write_struct_begin("FooBarStruct");
         proto.write_field_begin(nil, thrift_type, 15)
         proto.send(writer(primitive_type), value)
         proto.write_field_end
+        proto.write_struct_end
+        proto.flush
 
         proto = protocol_class.new(@trans)
+        proto.read_struct_begin
         name, type, id = proto.read_field_begin
+        proto.read_struct_end
         type.should == thrift_type
         id.should == 15
         read_back = proto.send(reader(primitive_type))
@@ -69,7 +79,7 @@ shared_examples_for 'a compact protocol' do
     struct2.read(proto)    
     struct2.should == struct
   end
-=end
+
   it "should make method calls correctly" do
     client_out_trans = Thrift::MemoryBufferTransport.new
     client_out_proto = protocol_class.new(@trans)

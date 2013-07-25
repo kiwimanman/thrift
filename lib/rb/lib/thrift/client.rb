@@ -38,6 +38,7 @@ module Thrift
         raise e
       end
       @oprot.write_message_end
+      @oprot.flush
       @oprot.trans.flush
     end
 

@@ -35,6 +35,7 @@ module Thrift
         oprot.write_message_begin(name, MessageTypes::EXCEPTION, seqid)
         x.write(oprot)
         oprot.write_message_end
+        oprot.flush
         oprot.trans.flush
         false
       end
@@ -51,6 +52,7 @@ module Thrift
       oprot.write_message_begin(name, MessageTypes::REPLY, seqid)
       result.write(oprot)
       oprot.write_message_end
+      oprot.flush
       oprot.trans.flush
     end
   end

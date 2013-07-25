@@ -20,7 +20,7 @@
 
 require 'spec_helper'
 require File.expand_path("#{File.dirname(__FILE__)}/compact_protocol_spec_shared")
-=begin
+
 describe Thrift::BufferedLayeredCompactProtocol do
 
 
@@ -30,7 +30,6 @@ describe Thrift::BufferedLayeredCompactProtocol do
     Thrift::BufferedLayeredCompactProtocol
   end
 end
-=end
 
 describe Thrift::BypassLayeredCompactProtocol do
 

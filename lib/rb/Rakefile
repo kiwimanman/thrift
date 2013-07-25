@@ -21,6 +21,9 @@ require 'rubygems'
 require 'rake'
 require 'rake/clean'
 require 'rspec/core/rake_task'
+require 'gemtools/rake_task'
+
+Gemtools::RakeTask.install_tasks
 
 THRIFT = '../../compiler/cpp/thrift'
 

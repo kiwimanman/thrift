@@ -129,6 +129,17 @@ static void write_flush(VALUE transport, struct compact_proto_buffer_data* buffe
   } 
 }
 
+static VALUE rb_flush(VALUE self)
+{
+  VALUE transport = GET_TRANSPORT(self);
+  struct compact_proto_buffer_data* buffer;
+  Data_Get_Struct(self, struct compact_proto_buffer_data, buffer);
+
+  write_flush(transport, buffer);
+
+  return Qnil;
+}
+
 
 static void write_byte_direct(VALUE transport, struct compact_proto_buffer_data* buffer, int8_t b) {
 
@@ -722,6 +733,7 @@ static void Init_rb_methods() {
 
 
   rb_define_method(thrift_compact_protocol_buffered_class, "native?", rb_thrift_compact_proto_buffered_native_qmark, 0);
+  rb_define_method(thrift_compact_protocol_buffered_class, "flush", rb_flush, 0);
 
   rb_define_method(thrift_compact_protocol_buffered_class, "write_message_begin", rb_thrift_compact_proto_buffered_write_message_begin, 3);
   rb_define_method(thrift_compact_protocol_buffered_class, "write_struct_begin", rb_thrift_compact_proto_buffered_write_struct_begin, 1);

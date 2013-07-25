@@ -426,6 +426,10 @@ module Thrift
     end
   end
 
+  def flush
+    raise NotImplementedError
+  end
+
   class CompactProtocolFactory < BaseProtocolFactory
     def get_protocol(trans)
       CompactProtocol.new(trans)

@@ -2,5 +2,5 @@
 
 #include "debug.h"
 
-char separator[] = "\0                                                                                             ";
+char separator[] = "\0                                                                                                                                                                                                                                                                                                                                                                                                                                                      ";
 int curdepth = 0;
