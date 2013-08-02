@@ -13,28 +13,27 @@
 #define MAX_STRUCT_DEPTH 64
 
 struct _compact_data;
- typedef struct _compact_data compact_data;
+typedef struct _compact_data compact_data;
 
- struct _compact_data {
- 	int last_field_id[MAX_STRUCT_DEPTH];
- 	int last_field_index;
+struct _compact_data {
+  int last_field_id[MAX_STRUCT_DEPTH];
+  int last_field_index;
 
 
- 	protocol_transfer* pt;
+  protocol_transfer* pt;
 
- 	VALUE transport;
+  VALUE transport;
 
- 	VALUE current_field_id;
- 	VALUE current_field_type;
-	VALUE current_field_value;
+  VALUE current_field_id;
+  VALUE current_field_type;
+  VALUE current_field_value;
 
- 	int current_field_active;
- };
+  int current_field_active;
+};
 
- void Init_compact_protocol_layered();
+void Init_compact_protocol_layered();
 
 compact_data* get_cdata(VALUE self);
 void set_cdata(VALUE self, compact_data* cdata);
-
 
 #endif

@@ -28,7 +28,6 @@ static VALUE rb_initialize(VALUE self, VALUE transport)
 }
 
 void Init_compact_protocol_layered_buffered() {
-
   VALUE thrift_layered_compact_protocol_class = rb_const_get(thrift_module, rb_intern("LayeredCompactProtocol"));
 
   VALUE bpa_class = rb_define_class_under(thrift_module, "BufferedLayeredCompactProtocol", thrift_layered_compact_protocol_class);

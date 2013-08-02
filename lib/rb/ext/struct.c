@@ -28,22 +28,8 @@
 
 #include "debug.h"
 
-
-
-
-
-
-
 static protocol_method_table default_table;
-
 static ID get_protocol_method_table_ID;
-
-
-
-
-
-
-
 static VALUE thrift_union_class;
 
 static ID setfield_id;
@@ -71,7 +57,7 @@ static void write_container(field_metadata *fmd, VALUE value, VALUE protocol, pr
   DEBUG_FUNCTION_ENTRY();
 
   if (fmd->type == TTYPE_MAP) {
-  DEBUG_FUNCTION_PROGRESS();
+    DEBUG_FUNCTION_PROGRESS();
 
     VALUE keys;
     VALUE key;
@@ -126,8 +112,8 @@ static void write_container(field_metadata *fmd, VALUE value, VALUE protocol, pr
   DEBUG_FUNCTION_PROGRESS();
     fastcall_call(pmt->write_list_end, protocol, Qnil);
   } else if (fmd->type == TTYPE_SET) {
-      DEBUG_FUNCTION_PROGRESS();
-VALUE items;
+    DEBUG_FUNCTION_PROGRESS();
+    VALUE items;
 
     if (TYPE(value) == T_ARRAY) {
       items = value;
@@ -193,8 +179,6 @@ static void write_anything(VALUE value, VALUE protocol, field_metadata* fmd, pro
   DEBUG_FUNCTION_EXIT();
 }
 
-
-
 static VALUE struct_write(VALUE self, VALUE protocol, protocol_method_table* pmt)
 {
   DEBUG_FUNCTION_ENTRY();
@@ -204,13 +188,11 @@ static VALUE struct_write(VALUE self, VALUE protocol, protocol_method_table* pmt
   // write struct begin
   fastcall_call(pmt->write_struct_begin, protocol, rb_class_name(CLASS_OF(self)));
 
-
   // iterate through all the fields here
   struct_metadata* md = getStructMetadata(CLASS_OF(self));
 
   int i = 0;
   for (i=0; i < getMetadataFieldCount(md); i++) {
-
     field_metadata* fmd = getFieldMetadataByIndex(md, i);
 
     DEBUGF("name=%s", fmd->name);

@@ -85,23 +85,23 @@ void push_last_field_id(compact_data* cdata, int id)
 /* Implements a stack to keep track of the last sent ID */
 int pop_last_field_id(compact_data* cdata)
 {
-        int lid;
-        DEBUG_FUNCTION_ENTRY();
+  int lid;
+  DEBUG_FUNCTION_ENTRY();
 
-        if (cdata->last_field_index <= 0) rb_bug("Structure nesting corrupt!");
+  if (cdata->last_field_index <= 0) rb_bug("Structure nesting corrupt!");
 
-        cdata->last_field_index--;
-        lid = cdata->last_field_id[cdata->last_field_index];
+  cdata->last_field_index--;
+  lid = cdata->last_field_id[cdata->last_field_index];
 
-        DEBUG_FUNCTION_EXIT();        
-        return lid;
+  DEBUG_FUNCTION_EXIT();        
+  return lid;
 }
 
 /* Getter / Setter for the C data structure tied to the ruby object. May be easily swapped to a more efficient implementation later */
 compact_data* get_cdata(VALUE self)
 {
-    compact_data* cdata = (compact_data*)NUM2PTR(rb_ivar_get(self, cdata_id));
-    return cdata;
+  compact_data* cdata = (compact_data*)NUM2PTR(rb_ivar_get(self, cdata_id));
+  return cdata;
 }
 
 /* Getter / Setter for the C data structure tied to the ruby object. May be easily swapped to a more efficient implementation later */
@@ -142,18 +142,18 @@ static int get_compact_type(VALUE type_value) {
 
 static void transfer_write_byte(compact_data* data, int8_t b)
 { 
-   DEBUG_FUNCTION_ENTRY();
-   protocol_transfer *pt = data->pt;
-   pt->write(pt, (char*)&b, 1);
-   DEBUG_FUNCTION_EXIT();
+  DEBUG_FUNCTION_ENTRY();
+  protocol_transfer *pt = data->pt;
+  pt->write(pt, (char*)&b, 1);
+  DEBUG_FUNCTION_EXIT();
 }
 
 static void transfer_write_bytes(compact_data* data, char* ba, int sz)
 {
-   DEBUG_FUNCTION_ENTRY();
-   protocol_transfer *pt = data->pt;
-   pt->write(pt, ba, sz); 
-   DEBUG_FUNCTION_EXIT();
+  DEBUG_FUNCTION_ENTRY();
+  protocol_transfer *pt = data->pt;
+  pt->write(pt, ba, sz); 
+  DEBUG_FUNCTION_EXIT();
 }
 
 static void transfer_flush(compact_data* data)
@@ -253,8 +253,8 @@ static void write_varint32(compact_data* cdata, uint32_t n) {
 }
 
 static void write_varint64(compact_data* cd, uint64_t n) {
-   DEBUG_FUNCTION_ENTRY();
- while (true) {
+  DEBUG_FUNCTION_ENTRY();
+  while (true) {
     if ((n & ~0x7F) == 0) {
       transfer_write_byte(cd, n & 0x7f);
       break;
@@ -266,8 +266,8 @@ static void write_varint64(compact_data* cd, uint64_t n) {
   DEBUG_FUNCTION_EXIT();
 }
 static void write_collection_begin(compact_data* cdata, VALUE elem_type, VALUE size_value) {
-   DEBUG_FUNCTION_ENTRY();
- int size = FIX2INT(size_value);
+  DEBUG_FUNCTION_ENTRY();
+  int size = FIX2INT(size_value);
   if (size <= 14) {
     transfer_write_byte(cdata, size << 4 | get_compact_type(elem_type));
   } else {
@@ -339,8 +339,6 @@ static VALUE rb_write_set_end(VALUE self) {
 static VALUE rb_write_message_begin(VALUE self, VALUE name, VALUE type, VALUE seqid) {
   DEBUG_FUNCTION_ENTRY();
 
-
-
   compact_data* cd = get_cdata(self);
 
   transfer_write_byte(cd, PROTOCOL_ID);
@@ -375,9 +373,9 @@ static VALUE rb_write_field_begin(VALUE self, VALUE name, VALUE type, VALUE id) 
 
 static VALUE rb_write_field_stop(VALUE self) {
   DEBUG_FUNCTION_ENTRY();
-    compact_data* cd = get_cdata(self);
+  compact_data* cd = get_cdata(self);
   transfer_write_byte(cd, TTYPE_STOP);
- // transfer_flush(cd);
+  // transfer_flush(cd);
 
   DEBUG_FUNCTION_EXIT();
   return Qnil;
@@ -418,8 +416,8 @@ static VALUE rb_write_set_begin(VALUE self, VALUE etype, VALUE size) {
 }
 
 static VALUE rb_write_bool(VALUE self, VALUE b) {
-   DEBUG_FUNCTION_ENTRY();
- compact_data* cd = get_cdata(self);      
+  DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);      
   int8_t type = b == Qtrue ? CTYPE_BOOLEAN_TRUE : CTYPE_BOOLEAN_FALSE;
 
   if (!cd->current_field_active) {
@@ -473,7 +471,7 @@ static VALUE rb_write_i16(VALUE self, VALUE i16) {
 
 static VALUE rb_write_i32(VALUE self, VALUE i32) {
   DEBUG_FUNCTION_ENTRY();
-     compact_data* cd = get_cdata(self);   
+  compact_data* cd = get_cdata(self);   
 
   CHECK_NIL(i32);
   write_varint32(cd, int_to_zig_zag(NUM2INT(i32)));
@@ -483,8 +481,8 @@ static VALUE rb_write_i32(VALUE self, VALUE i32) {
 }
 
 static VALUE rb_write_i64(VALUE self, VALUE i64) {
-   DEBUG_FUNCTION_ENTRY();
- compact_data* cd = get_cdata(self);   
+  DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);   
 
   CHECK_NIL(i64);
   write_varint64(cd, ll_to_zig_zag(NUM2LL(i64)));
@@ -494,8 +492,8 @@ static VALUE rb_write_i64(VALUE self, VALUE i64) {
 }
 
 static VALUE rb_write_double(VALUE self, VALUE dub) {
-   DEBUG_FUNCTION_ENTRY();
- CHECK_NIL(dub);
+  DEBUG_FUNCTION_ENTRY();
+  CHECK_NIL(dub);
   compact_data* cd = get_cdata(self);   
 
   // Unfortunately, bitwise_cast doesn't work in C.  Bad C!
@@ -532,8 +530,8 @@ static VALUE write_string(compact_data* cdata, VALUE str) {
 
 
 static VALUE write_binary(compact_data* cdata, VALUE buf) {
-   DEBUG_FUNCTION_ENTRY();
- buf = force_binary_encoding(buf);
+  DEBUG_FUNCTION_ENTRY();
+  buf = force_binary_encoding(buf);
   write_varint32(cdata, RSTRING_LEN(buf));
   transfer_write_bytes(cdata, RSTRING_PTR(buf), RSTRING_LEN(buf));
   DEBUG_FUNCTION_EXIT();
@@ -552,13 +550,12 @@ static VALUE rb_write_string(VALUE self, VALUE str) {
 
 
 static VALUE rb_write_binary(VALUE self, VALUE buf) {
-   DEBUG_FUNCTION_ENTRY();
- compact_data* cd = get_cdata(self);   
+  DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);   
   write_binary(cd, buf);
 
   DEBUG_FUNCTION_EXIT();
   return Qnil;
-
 }
 /*
 //---------------------------------------
@@ -650,23 +647,23 @@ static VALUE get_protocol_exception(VALUE code, VALUE message) {
 }
 
 static VALUE rb_read_struct_begin(VALUE self) {
-        DEBUG_FUNCTION_ENTRY();
-        compact_data* cd = get_cdata(self);   
-                
-        push_last_field_id(cd, 0);
+  DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);   
+          
+  push_last_field_id(cd, 0);
 
-        DEBUG_FUNCTION_EXIT();  
-        return Qnil;
+  DEBUG_FUNCTION_EXIT();  
+  return Qnil;
 }
 
 static VALUE rb_read_struct_end(VALUE self) {
-        DEBUG_FUNCTION_ENTRY();
-        compact_data* cd = get_cdata(self);   
-                
-        pop_last_field_id(cd);
-        
-        DEBUG_FUNCTION_EXIT();  
-        return Qnil;
+  DEBUG_FUNCTION_ENTRY();
+  compact_data* cd = get_cdata(self);   
+          
+  pop_last_field_id(cd);
+
+  DEBUG_FUNCTION_EXIT();  
+  return Qnil;
 }
 
 
@@ -879,14 +876,14 @@ static VALUE read_binary(compact_data* cd) {
   char *buf = b;
 
   if (size > 4096)
-        buf = malloc(size);
+    buf = malloc(size);
 
   int l = transfer_read_bytes(cd, buf, size);
 
   VALUE str = rb_str_new(buf, l);
 
   if (size > 4096)
-        free(buf);
+    free(buf);
 
   DEBUG_FUNCTION_EXIT();
   return str;
@@ -910,32 +907,26 @@ static VALUE rb_read_binary(VALUE self) {
   return v;
 }
 
-
-
- compact_data* compact_data_allocate()
- {
+compact_data* compact_data_allocate()
+{
   return calloc(sizeof(compact_data), 1);
- }
+}
 
- void compact_data_free(void *cd)
- {
-   compact_data* cdata = (compact_data*)cd;
+void compact_data_free(void *cd)
+{
+  compact_data* cdata = (compact_data*)cd;
 
-   if (cdata)
-   {
-      if (cdata->pt)
-        cdata->pt->free(cdata->pt);
-   }
-   free(cdata);
- }
+  if ((cdata) && (cdata->pt))
+    cdata->pt->free(cdata->pt);
+
+  free(cdata);
+}
 
 
 
 static VALUE rb_initialize(VALUE self, VALUE transport)
 {
   rb_call_super(1, &transport);
-
-
 
   compact_data* cd = compact_data_allocate();
   set_cdata(self, cd);

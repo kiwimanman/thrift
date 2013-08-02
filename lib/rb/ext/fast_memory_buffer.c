@@ -51,8 +51,8 @@ static VALUE rb_write(VALUE self, VALUE str);
  /* Getter / Setter for the C data structure tied to the ruby object. May be easily swapped to a more efficient implementation later */
 static fmem_data* get_cdata(VALUE self)
 {
-    fmem_data* cdata = (fmem_data*)NUM2ULONG(rb_ivar_get(self, cdata_id));
-    return cdata;
+  fmem_data* cdata = (fmem_data*)NUM2ULONG(rb_ivar_get(self, cdata_id));
+  return cdata;
 }
 
 /* Getter / Setter for the C data structure tied to the ruby object. May be easily swapped to a more efficient implementation later */
@@ -86,23 +86,23 @@ static VALUE rb_initialize(VALUE self)
 
 static VALUE rb_reset_buffer(int argc, VALUE* argv, VALUE self)
 {
-    DEBUG_FUNCTION_ENTRY();
+  DEBUG_FUNCTION_ENTRY();
 
-    fmem_data* fm = get_cdata(self);
+  fmem_data* fm = get_cdata(self);
 
-    fm->buf_rd_idx = 0;
-    fm->buf_wr_idx = 0;
+  fm->buf_rd_idx = 0;
+  fm->buf_wr_idx = 0;
 
-    collect_garbage(fm);
+  collect_garbage(fm);
 
-    if (argc > 1)
-      rb_raise(rb_eArgError, "wrong number of arguments");
+  if (argc > 1)
+    rb_raise(rb_eArgError, "wrong number of arguments");
 
-    if (argc == 1)
-      rb_write(self, argv[0]);
+  if (argc == 1)
+    rb_write(self, argv[0]);
 
-    DEBUG_FUNCTION_EXIT();
-    return Qnil;
+  DEBUG_FUNCTION_EXIT();
+  return Qnil;
 }
 
 static VALUE rb_available(VALUE self)
@@ -151,9 +151,7 @@ static VALUE rb_read(VALUE self, VALUE length_value) {
   int len = FIX2INT(length_value);
 
   if (fm->buf_sz - fm->buf_rd_idx < len)
-  {
     rb_raise(rb_eEOFError, "Not enough bytes remain in memory buffer");
-  }
 
   VALUE ret = rb_str_new(fm->buffer + fm->buf_rd_idx, len);
 
