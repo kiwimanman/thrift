@@ -108,7 +108,11 @@ static void compileField(int id, VALUE field_info, field_metadata* fmd)
     
   fmd->klass_md = v_klass == Qnil ? 0 : getStructMetadataEx(v_klass, 1);
   fmd->klass_v = v_klass;
-  if (v_klass != Qnil) rb_const_set(v_klass, rb_intern("do_not_garbage_collect_me"), v_klass);
+  if (v_klass != Qnil) 
+  {
+    if (rb_const_defined(v_klass, rb_intern("do_not_garbage_collect_me")) == Qnil)
+      rb_const_set(v_klass, rb_intern("do_not_garbage_collect_me"), v_klass);
+  }
 
   DEBUG_FUNCTION_PROGRESS();
 
