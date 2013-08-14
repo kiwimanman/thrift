@@ -148,9 +148,8 @@ static field_metadata* createAndCompileField(int id, VALUE field_info)
 
 static struct_metadata* compileMetadata(VALUE klass)
 {   
-  printf("Compile Class=%s\n", RSTRING_PTR(rb_class_name(klass)));
-
   DEBUG_FUNCTION_ENTRY();
+  DEBUGF("Compile Class=%s\n", RSTRING_PTR(rb_class_name(klass)));
 
   int i;
   struct_metadata* met = malloc(sizeof(struct_metadata));
