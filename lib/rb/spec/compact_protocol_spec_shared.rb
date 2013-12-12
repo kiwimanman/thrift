@@ -24,7 +24,7 @@ shared_examples_for 'a compact protocol' do
         @trans.reset_buffer
         # puts "testing #{value}" if primitive_type == :i64
         proto = protocol_class.new(@trans)
-        
+
         proto.send(writer(primitive_type), value)
         proto.flush
 
@@ -76,7 +76,7 @@ shared_examples_for 'a compact protocol' do
     struct.write(proto)
 
     struct2 = CompactProtoTestStruct.new
-    struct2.read(proto)    
+    struct2.read(proto)
     struct2.should == struct
   end
 
@@ -95,13 +95,13 @@ shared_examples_for 'a compact protocol' do
     processor.process(client_out_proto, client_in_proto)
     client.recv_Janky.should == 2
   end
-  
+
   it "should deal with fields following fields that have non-delta ids" do
     brcp = BreaksRubyCompactProtocol.new(
-      :field1 => "blah", 
+      :field1 => "blah",
       :field2 => BigFieldIdStruct.new(
-        :field1 => "string1", 
-        :field2 => "string2"), 
+        :field1 => "string1",
+        :field2 => "string2"),
       :field3 => 3)
     ser = Thrift::Serializer.new(Thrift::CompactProtocolFactory.new)
     bytes = ser.serialize(brcp)
@@ -111,7 +111,7 @@ shared_examples_for 'a compact protocol' do
     deser.deserialize(brcp2, bytes)
     brcp2.should == brcp
   end
-  
+
   it "should deserialize an empty map to an empty hash" do
     struct = SingleMapTestStruct.new(:i32_map => {})
     ser = Thrift::Serializer.new(Thrift::CompactProtocolFactory.new)
@@ -122,17 +122,17 @@ shared_examples_for 'a compact protocol' do
     deser.deserialize(struct2, bytes)
     struct.should == struct2
   end
-  
+
   class JankyHandler
     def Janky(i32arg)
       i32arg * 2
     end
   end
-  
+
   def writer(sym)
     "write_#{sym.to_s}"
   end
-  
+
   def reader(sym)
     "read_#{sym.to_s}"
   end

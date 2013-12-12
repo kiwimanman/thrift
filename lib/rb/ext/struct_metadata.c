@@ -3,11 +3,6 @@
 #include "struct_metadata.h"
 #include "ruby_ptr.h"
 
-
-#define DEBUG 0
-
-
-
 #include "debug.h"
 
 #define STRUCT_FIELDS(obj) rb_const_get(CLASS_OF(obj), fields_const_id)
@@ -48,8 +43,7 @@ field_metadata* getFieldMetadataByID(struct_metadata* md, int id)
 // SLOOOOOOOW!!!
 field_metadata* getFieldMetadataByName(struct_metadata* md, char* name)
 {
-  printf("SLOW EXEC\n");
-
+  LOGF("SLOW EXEC\n");
 
   DEBUG_FUNCTION_ENTRY();
   int i;
@@ -71,7 +65,7 @@ field_metadata* getFieldMetadataByIndex(struct_metadata* md, int idx)
 {
   DEBUG_FUNCTION_ENTRY();
   if (md->size <= idx) rb_raise(rb_eRuntimeError, "Index %d out of range for metadata object. Maximum is %d", idx, md->size - 1);
-  
+
 
   DEBUG_FUNCTION_EXIT();
   return &md->fields[idx];
@@ -105,10 +99,10 @@ static void compileField(int id, VALUE field_info, field_metadata* fmd)
   DEBUGF("id=%d type=%d, name=%s", fmd->id, fmd->type, fmd->name);
 
   VALUE v_klass = rb_hash_aref(field_info, class_sym);
-    
+
   fmd->klass_md = v_klass == Qnil ? 0 : getStructMetadataEx(v_klass, 1);
   fmd->klass_v = v_klass;
-  if (v_klass != Qnil) 
+  if (v_klass != Qnil)
   {
     if (rb_const_defined(v_klass, rb_intern("do_not_garbage_collect_me")) == Qnil)
       rb_const_set(v_klass, rb_intern("do_not_garbage_collect_me"), v_klass);
@@ -134,7 +128,7 @@ static void compileField(int id, VALUE field_info, field_metadata* fmd)
 static field_metadata* createAndCompileField(int id, VALUE field_info)
 {
   DEBUG_FUNCTION_ENTRY();
-  
+
   if (field_info == Qnil)
   {
     DEBUG_FUNCTION_EXIT();
@@ -151,16 +145,16 @@ static field_metadata* createAndCompileField(int id, VALUE field_info)
 
 
 static struct_metadata* compileMetadata(VALUE klass)
-{   
+{
   DEBUG_FUNCTION_ENTRY();
   DEBUGF("Compile Class=%s\n", RSTRING_PTR(rb_class_name(klass)));
 
   int i;
   struct_metadata* met = malloc(sizeof(struct_metadata));
 
-  VALUE struct_fields = rb_const_get(klass, fields_const_id); 
+  VALUE struct_fields = rb_const_get(klass, fields_const_id);
   if (struct_fields == Qnil) rb_raise(rb_eRuntimeError, "Could not find class constant FIELDS in supplied klass parameter when compiling metadata!");
-  VALUE field_ids = rb_funcall(struct_fields, rb_intern("keys"), 0); 
+  VALUE field_ids = rb_funcall(struct_fields, rb_intern("keys"), 0);
   if (field_ids == Qnil) rb_raise(rb_eRuntimeError, "Could not get FIELDS keys from supplied klass parameter when compiling metadata!");
 
   met->size = RARRAY_LEN(field_ids);
@@ -186,7 +180,7 @@ static struct_metadata* compileMetadata(VALUE klass)
   met->index = calloc(sizeof(field_metadata*), met->maxid + 1);
   for(i=0;i<met->size;i++)
     met->index[met->fields[i].id] = &met->fields[i];
-  
+
   DEBUG_FUNCTION_EXIT();
   return met;
 }
@@ -195,7 +189,7 @@ struct_metadata* getStructMetadataEx(VALUE klass, int autocompile)
 {
   DEBUG_FUNCTION_ENTRY();
 
-  if (klass == Qnil) 
+  if (klass == Qnil)
   {
     DEBUG_FUNCTION_EXIT();
     return NULL;
@@ -229,7 +223,7 @@ struct_metadata* getStructMetadata(VALUE klass)
   DEBUG_FUNCTION_ENTRY();
   struct_metadata* md = getStructMetadataEx(klass, 1);
   DEBUG_FUNCTION_EXIT();
-  
+
   return md;
 }
 

@@ -1,14 +1,7 @@
 
 #include <ruby.h>
 #include "protocol_transfer.h"
-
-#define DEBUG 0
-
-#if DEBUG
-  #define DEBUG_FUNCTION_ENTRY() printf("bypassed %s\n", __FUNCTION__);
-#else
-  #define DEBUG_FUNCTION_ENTRY()
-#endif
+#include "debug.h"
 
 struct _bypass_data;
 typedef struct _bypass_data bypass_data;
@@ -44,6 +37,7 @@ static int protocol_read(protocol_transfer* pt, char* buffer, int length)
     VALUE buf = rb_funcall(data->transport, data->read_all_method_id, 1, INT2FIX(length));
     memcpy(buffer, RSTRING_PTR(buf), RSTRING_LEN(buf));
 
+    DEBUG_FUNCTION_EXIT();
     return RSTRING_LEN(buf);
   }
   else
@@ -51,6 +45,7 @@ static int protocol_read(protocol_transfer* pt, char* buffer, int length)
     VALUE b = rb_funcall(data->transport, data->read_byte_method_id, 0);
     *buffer = FIX2INT(b);
 
+    DEBUG_FUNCTION_EXIT();
     return 1;
   }
 }
@@ -58,7 +53,7 @@ static int protocol_read(protocol_transfer* pt, char* buffer, int length)
 static void protocol_write(protocol_transfer* pt, char* buf, int length)
 {
   bypass_data* data = (bypass_data*)pt->data;
-        
+
   rb_funcall(data->transport, data->write_method_id, 1, rb_str_new(buf, length));
 }
 

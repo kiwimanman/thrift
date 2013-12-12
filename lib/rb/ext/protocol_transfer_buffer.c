@@ -3,8 +3,6 @@
 #include "protocol_transfer.h"
 #include "protocol_transfer_buffer.h"
 
-#define DEBUG 0
-
 #include "debug.h"
 
 //#define LOG_FUNC()
@@ -38,7 +36,7 @@ static void protocol_flush(protocol_transfer* pt);
 
 static void protocol_free(protocol_transfer* pt)
 {
-  if (pt != NULL) 
+  if (pt != NULL)
   {
     free(pt->data);
   }
@@ -90,7 +88,7 @@ static void protocol_write(protocol_transfer* pt, char* buf, int length)
 
   buffer_data* data = (buffer_data*)pt->data;
 
-  if (length == 0) 
+  if (length == 0)
   {
     DEBUG_FUNCTION_EXIT();
     return;

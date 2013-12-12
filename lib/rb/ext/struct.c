@@ -24,8 +24,6 @@
 #include "ruby_ptr.h"
 #include "struct_metadata.h"
 
-#define DEBUG 0
-
 #include "debug.h"
 
 static protocol_method_table default_table;
@@ -103,11 +101,11 @@ static void write_container(field_metadata *fmd, VALUE value, VALUE protocol, pr
     for (i = 0; i < sz; ++i) {
   DEBUG_FUNCTION_PROGRESS();
       VALUE val = rb_ary_entry(value, i);
-      
+
   DEBUG_FUNCTION_PROGRESS();
       write_anything(val, protocol, element_md, pmt);
   DEBUG_FUNCTION_PROGRESS();
-      
+
     }
   DEBUG_FUNCTION_PROGRESS();
     fastcall_call(pmt->write_list_end, protocol, Qnil);
@@ -117,7 +115,7 @@ static void write_container(field_metadata *fmd, VALUE value, VALUE protocol, pr
 
     if (TYPE(value) == T_ARRAY) {
       items = value;
-    } else {        
+    } else {
       if (rb_cSet == CLASS_OF(value)) {
         items = rb_funcall(value, entries_method_id, 0);
       } else {
@@ -674,7 +672,7 @@ void Init_struct() {
   rb_define_method(thrift_union_class, "read", rb_union_read, 1);
 
   get_protocol_method_table_ID = rb_intern("get_protocol_method_table");
-  
+
   setfield_id = rb_intern("@setfield");
   setvalue_id = rb_intern("@value");
 

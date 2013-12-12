@@ -22,8 +22,6 @@
 #include <bytes.h>
 #include <macros.h>
 
-#define DEBUG 0
-
 #include "debug.h"
 
 #define GARBAGE_BUFFER_SIZE (32 * 1024) //32k
@@ -81,6 +79,7 @@ static VALUE rb_initialize(VALUE self)
   fmem_data* fm = calloc(sizeof(fmem_data), 1);
 
   set_cdata(self, fm);
+  DEBUG_FUNCTION_EXIT();
   return self;
 }
 
@@ -111,7 +110,7 @@ static VALUE rb_available(VALUE self)
 
   fmem_data* fm = get_cdata(self);
 
-  VALUE v = INT2FIX(fm->buf_wr_idx - fm->buf_rd_idx); 
+  VALUE v = INT2FIX(fm->buf_wr_idx - fm->buf_rd_idx);
 
   DEBUG_FUNCTION_EXIT();
   return v;
@@ -151,7 +150,11 @@ static VALUE rb_read(VALUE self, VALUE length_value) {
   int len = FIX2INT(length_value);
 
   if (fm->buf_sz - fm->buf_rd_idx < len)
+  {
     rb_raise(rb_eEOFError, "Not enough bytes remain in memory buffer");
+    DEBUG_FUNCTION_EXIT();
+    return Qnil;
+  }
 
   VALUE ret = rb_str_new(fm->buffer + fm->buf_rd_idx, len);
 
@@ -199,12 +202,14 @@ static VALUE rb_read_into_buffer(VALUE self, VALUE buffer_value, VALUE size_valu
   if (fm->buf_sz - fm->buf_rd_idx < len)
   {
     rb_raise(rb_eEOFError, "Not enough bytes remain in memory buffer");
+    DEBUG_FUNCTION_EXIT();
     return Qnil;
   }
 
   if (buflen < len)
   {
     rb_raise(rb_eIndexError, "read of %d bytes requested, but buffer is only %d long", len, buflen);
+    DEBUG_FUNCTION_EXIT();
     return Qnil;
   }
 
@@ -232,6 +237,6 @@ void Init_fast_memory_buffer() {
   rb_define_method(thrift_memory_buffer_class, "read", rb_read, 1);
   rb_define_method(thrift_memory_buffer_class, "read_byte", rb_read_byte, 0);
   rb_define_method(thrift_memory_buffer_class, "read_into_buffer", rb_read_into_buffer, 2);
-  
+
   cdata_id = rb_intern("@cdata");
 }

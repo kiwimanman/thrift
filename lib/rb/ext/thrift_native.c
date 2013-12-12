@@ -28,6 +28,8 @@
 #include <compact_protocol_layered_bypass.h>
 #include <compact_protocol_layered_buffered.h>
 
+#include "debug.h"
+
 // cached classes/modules
 VALUE rb_cSet;
 VALUE thrift_module;
@@ -159,7 +161,7 @@ void Init_thrift_native() {
   read_string_method_id = rb_intern("read_string");
   read_double_method_id = rb_intern("read_double");
   read_map_begin_method_id = rb_intern("read_map_begin");
-  read_map_end_method_id = rb_intern("read_map_end");  
+  read_map_end_method_id = rb_intern("read_map_end");
   read_list_begin_method_id = rb_intern("read_list_begin");
   read_list_end_method_id = rb_intern("read_list_end");
   read_set_begin_method_id = rb_intern("read_set_begin");
@@ -184,7 +186,7 @@ void Init_thrift_native() {
   fields_const_id = rb_intern("FIELDS");
   transport_ivar_id = rb_intern("@trans");
   strict_read_ivar_id = rb_intern("@strict_read");
-  strict_write_ivar_id = rb_intern("@strict_write");  
+  strict_write_ivar_id = rb_intern("@strict_write");
 
   // cached symbols
   type_sym = ID2SYM(rb_intern("type"));
@@ -194,6 +196,7 @@ void Init_thrift_native() {
   element_sym = ID2SYM(rb_intern("element"));
   class_sym = ID2SYM(rb_intern("class"));
 
+  Init_debug();
   Init_struct();
   Init_binary_protocol_accelerated();
   Init_compact_protocol();
