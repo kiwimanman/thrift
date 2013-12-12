@@ -1,4 +1,7 @@
 source "http://rubygems.org"
+source "http://rubygems.util.pages"
+
+gem 'gemtools'
 
 gemspec
 
