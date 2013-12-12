@@ -106,7 +106,7 @@ shared_examples_for 'a memory buffer' do
   @trans.write("AABBCCDD");
   @trans.reset_buffer(str);
   @trans.reset_buffer(str);
-  expect(@trans.read(@trans.available)).to eq str  
+  expect(@trans.read(@trans.available)).to eq str
 end
 
 it 'should respond correctly to resetting the buffer without an argument' do
