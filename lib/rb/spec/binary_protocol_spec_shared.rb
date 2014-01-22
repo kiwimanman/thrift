@@ -109,7 +109,7 @@ shared_examples_for 'a binary protocol' do
       @trans.read(1).should == [i].pack('c')
     end
     # handing it numbers out of signed range should clip
-    @trans.rspec_verify
+  #  @trans.rspec_verify
     (128..255).each do |i|
       @prot.write_byte(i)
       @trans.read(1).should == [i].pack('c')

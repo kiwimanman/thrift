@@ -25,17 +25,17 @@
 #define READ(obj, length) rb_funcall(GET_TRANSPORT(obj), read_all_method_id, 1, INT2FIX(length))
 
 #ifndef RFLOAT_VALUE
-#  define RFLOAT_VALUE(v) RFLOAT(rb_Float(v))->value
+  #define RFLOAT_VALUE(v) RFLOAT(rb_Float(v))->value
 #endif
 
 #ifndef RSTRING_LEN
-#  define RSTRING_LEN(v) RSTRING(rb_String(v))->len
+  #define RSTRING_LEN(v) RSTRING(rb_String(v))->len
 #endif
 
 #ifndef RSTRING_PTR
-#  define RSTRING_PTR(v) RSTRING(rb_String(v))->ptr
+  #define RSTRING_PTR(v) RSTRING(rb_String(v))->ptr
 #endif
 
 #ifndef RARRAY_LEN
-#  define RARRAY_LEN(v) RARRAY(rb_Array(v))->len
+  #define RARRAY_LEN(v) RARRAY(rb_Array(v))->len
 #endif

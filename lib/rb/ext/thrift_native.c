@@ -23,6 +23,12 @@
 #include <binary_protocol_accelerated.h>
 #include <compact_protocol.h>
 #include <memory_buffer.h>
+#include <fast_memory_buffer.h>
+#include <compact_protocol_layered.h>
+#include <compact_protocol_layered_bypass.h>
+#include <compact_protocol_layered_buffered.h>
+
+#include "debug.h"
 
 // cached classes/modules
 VALUE rb_cSet;
@@ -90,6 +96,7 @@ ID read_into_buffer_method_id;
 ID force_binary_encoding_id;
 ID convert_to_utf8_byte_buffer_id;
 ID convert_to_string_id;
+ID flush_method_id;
 
 // constant ids
 ID fields_const_id;
@@ -154,7 +161,7 @@ void Init_thrift_native() {
   read_string_method_id = rb_intern("read_string");
   read_double_method_id = rb_intern("read_double");
   read_map_begin_method_id = rb_intern("read_map_begin");
-  read_map_end_method_id = rb_intern("read_map_end");  
+  read_map_end_method_id = rb_intern("read_map_end");
   read_list_begin_method_id = rb_intern("read_list_begin");
   read_list_end_method_id = rb_intern("read_list_end");
   read_set_begin_method_id = rb_intern("read_set_begin");
@@ -173,12 +180,13 @@ void Init_thrift_native() {
   force_binary_encoding_id = rb_intern("force_binary_encoding");
   convert_to_utf8_byte_buffer_id = rb_intern("convert_to_utf8_byte_buffer");
   convert_to_string_id = rb_intern("convert_to_string");
+  flush_method_id = rb_intern("flush");
 
   // constant ids
   fields_const_id = rb_intern("FIELDS");
   transport_ivar_id = rb_intern("@trans");
   strict_read_ivar_id = rb_intern("@strict_read");
-  strict_write_ivar_id = rb_intern("@strict_write");  
+  strict_write_ivar_id = rb_intern("@strict_write");
 
   // cached symbols
   type_sym = ID2SYM(rb_intern("type"));
@@ -188,8 +196,13 @@ void Init_thrift_native() {
   element_sym = ID2SYM(rb_intern("element"));
   class_sym = ID2SYM(rb_intern("class"));
 
+  Init_debug();
   Init_struct();
   Init_binary_protocol_accelerated();
   Init_compact_protocol();
+  Init_compact_protocol_layered();
+  Init_compact_protocol_layered_bypass();
+  Init_compact_protocol_layered_buffered();
   Init_memory_buffer();
+  Init_fast_memory_buffer();
 }
