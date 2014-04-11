@@ -19,9 +19,7 @@
 
 #define __STDC_FORMAT_MACROS
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <thrift/thrift-config.h>
 
 #include <thrift/server/TNonblockingServer.h>
 #include <thrift/concurrency/Exception.h>
@@ -349,7 +347,7 @@ class TNonblockingServer::TConnection::Task: public Runnable {
   void run() {
     try {
       for (;;) {
-        if (serverEventHandler_ != NULL) {
+        if (serverEventHandler_) {
           serverEventHandler_->processContext(connectionContext_, connection_->getTSocket());
         }
         if (!processor_->process(input_, output_, connectionContext_) ||
@@ -426,7 +424,7 @@ void TNonblockingServer::TConnection::init(THRIFT_SOCKET socket,
 
   // Set up for any server event handler
   serverEventHandler_ = server_->getEventHandler();
-  if (serverEventHandler_ != NULL) {
+  if (serverEventHandler_) {
     connectionContext_ = serverEventHandler_->createContext(inputProtocol_,
                                                             outputProtocol_);
   } else {
@@ -479,7 +477,7 @@ void TNonblockingServer::TConnection::workSocket() {
       // Don't allow giant frame sizes.  This prevents bad clients from
       // causing us to try and allocate a giant buffer.
       GlobalOutput.printf("TNonblockingServer: frame size too large "
-                          "(%"PRIu32" > %"PRIu64") from client %s. "
+                          "(%" PRIu32 " > %" PRIu64 ") from client %s. "
                           "Remote side not using TFramedTransport?",
                           readWant_,
                           (uint64_t)server_->getMaxFrameSize(),
@@ -617,10 +615,10 @@ void TNonblockingServer::TConnection::transition() {
       return;
     } else {
       try {
-	if (serverEventHandler_ != NULL) {
-	    serverEventHandler_->processContext(connectionContext_,
-						getTSocket());
-	}
+        if (serverEventHandler_) {
+          serverEventHandler_->processContext(connectionContext_,
+                                              getTSocket());
+        }
         // Invoke the processor
         processor_->process(inputProtocol_, outputProtocol_,
                             connectionContext_);
@@ -830,7 +828,7 @@ void TNonblockingServer::TConnection::close() {
     GlobalOutput.perror("TConnection::close() event_del", THRIFT_GET_SOCKET_ERROR);
   }
 
-  if (serverEventHandler_ != NULL) {
+  if (serverEventHandler_) {
     serverEventHandler_->deleteContext(connectionContext_, inputProtocol_, outputProtocol_);
   }
   ioThread_ = NULL;
@@ -895,7 +893,7 @@ TNonblockingServer::TConnection* TNonblockingServer::createConnection(
   // pick an IO thread to handle this connection -- currently round robin
   assert(nextIOThread_ < ioThreads_.size());
   int selectedThreadIdx = nextIOThread_;
-  nextIOThread_ = (nextIOThread_ + 1) % ioThreads_.size();
+  nextIOThread_ = static_cast<uint32_t>((nextIOThread_ + 1) % ioThreads_.size());
 
   TNonblockingIOThread* ioThread = ioThreads_[selectedThreadIdx].get();
 
@@ -1132,7 +1130,7 @@ void TNonblockingServer::listenSocket(THRIFT_SOCKET s) {
 
 void TNonblockingServer::setThreadManager(boost::shared_ptr<ThreadManager> threadManager) {
   threadManager_ = threadManager;
-  if (threadManager != NULL) {
+  if (threadManager) {
     threadManager->setExpireCallback(apache::thrift::stdcxx::bind(&TNonblockingServer::expireClose, this, apache::thrift::stdcxx::placeholders::_1));
     threadPoolProcessing_ = true;
   } else {
@@ -1193,13 +1191,12 @@ void TNonblockingServer::stop() {
   }
 }
 
-/**
- * Main workhorse function, starts up the server listening on a port and
- * loops over the libevent handler.
- */
-void TNonblockingServer::serve() {
+void TNonblockingServer::registerEvents(event_base* user_event_base) {
+  userEventBase_ = user_event_base;
+
   // init listen socket
-  createAndListenOnSocket();
+  if (serverSocket_ == THRIFT_INVALID_SOCKET)
+    createAndListenOnSocket();
 
   // set up the IO threads
   assert(ioThreads_.empty());
@@ -1209,7 +1206,7 @@ void TNonblockingServer::serve() {
 
   for (uint32_t id = 0; id < numIOThreads_; ++id) {
     // the first IO thread also does the listening on server socket
-    THRIFT_SOCKET listenFd = (id == 0 ? serverSocket_ : -1);
+    THRIFT_SOCKET listenFd = (id == 0 ? serverSocket_ : THRIFT_INVALID_SOCKET);
 
     shared_ptr<TNonblockingIOThread> thread(
       new TNonblockingIOThread(this, id, listenFd, useHighPriorityIOThreads_));
@@ -1217,7 +1214,7 @@ void TNonblockingServer::serve() {
   }
 
   // Notify handler of the preServe event
-  if (eventHandler_ != NULL) {
+  if (eventHandler_) {
     eventHandler_->preServe();
   }
 
@@ -1250,6 +1247,18 @@ void TNonblockingServer::serve() {
     }
   }
 
+  // Register the events for the primary (listener) IO thread
+  ioThreads_[0]->registerEvents();
+}
+
+/**
+ * Main workhorse function, starts up the server listening on a port and
+ * loops over the libevent handler.
+ */
+void TNonblockingServer::serve() {
+
+  registerEvents(NULL);
+
   // Run the primary (listener) IO thread loop in our main thread; this will
   // only return when the server is shutting down.
   ioThreads_[0]->run();
@@ -1269,7 +1278,8 @@ TNonblockingIOThread::TNonblockingIOThread(TNonblockingServer* server,
       , number_(number)
       , listenSocket_(listenSocket)
       , useHighPriority_(useHighPriority)
-      , eventBase_(NULL) {
+      , eventBase_(NULL)
+      , ownEventBase_(false) {
   notificationPipeFDs_[0] = -1;
   notificationPipeFDs_[1] = -1;
 }
@@ -1278,8 +1288,9 @@ TNonblockingIOThread::~TNonblockingIOThread() {
   // make sure our associated thread is fully finished
   join();
 
-  if (eventBase_) {
+  if (eventBase_ && ownEventBase_) {
     event_base_free(eventBase_);
+    ownEventBase_ = false;
   }
 
   if (listenSocket_ >= 0) {
@@ -1287,7 +1298,7 @@ TNonblockingIOThread::~TNonblockingIOThread() {
       GlobalOutput.perror("TNonblockingIOThread listenSocket_ close(): ",
                           THRIFT_GET_SOCKET_ERROR);
     }
-    listenSocket_ = TNonblockingServer::INVALID_SOCKET_VALUE;
+    listenSocket_ = THRIFT_INVALID_SOCKET;
   }
 
   for (int i = 0; i < 2; ++i) {
@@ -1296,7 +1307,7 @@ TNonblockingIOThread::~TNonblockingIOThread() {
         GlobalOutput.perror("TNonblockingIOThread notificationPipe close(): ",
                             THRIFT_GET_SOCKET_ERROR);
       }
-      notificationPipeFDs_[i] = TNonblockingServer::INVALID_SOCKET_VALUE;
+      notificationPipeFDs_[i] = THRIFT_INVALID_SOCKET;
     }
   }
 }
@@ -1332,6 +1343,22 @@ void TNonblockingIOThread::createNotificationPipe() {
  * Register the core libevent events onto the proper base.
  */
 void TNonblockingIOThread::registerEvents() {
+  threadId_ = Thread::get_current();
+
+  assert(eventBase_ == 0);
+  eventBase_ = getServer()->getUserEventBase();
+  if (eventBase_ == NULL) {
+    eventBase_ = event_base_new();
+    ownEventBase_ = true;
+  }
+
+  // Print some libevent stats
+  if (number_ == 0) {
+    GlobalOutput.printf("TNonblockingServer: using libevent %s method %s",
+            event_get_version(),
+            event_base_get_method(eventBase_));
+  }
+
   if (listenSocket_ >= 0) {
     // Register the server event
     event_set(&serverEvent_,
@@ -1394,7 +1421,7 @@ void TNonblockingIOThread::notifyHandler(evutil_socket_t fd, short which, void* 
   while (true) {
     TNonblockingServer::TConnection* connection = 0;
     const int kSize = sizeof(connection);
-    int nBytes = recv(fd, cast_sockopt(&connection), kSize, 0);
+    long nBytes = recv(fd, cast_sockopt(&connection), kSize, 0);
     if (nBytes == kSize) {
       if (connection == NULL) {
         // this is the command to stop our thread, exit the handler!
@@ -1476,24 +1503,14 @@ void TNonblockingIOThread::setCurrentThreadHighPriority(bool value) {
   } else {
     GlobalOutput.perror("TNonblocking: pthread_setschedparam(): ", THRIFT_GET_SOCKET_ERROR);
   }
+#else
+  THRIFT_UNUSED_VARIABLE(value);
 #endif
 }
 
 void TNonblockingIOThread::run() {
-  threadId_ = Thread::get_current();
-
-  assert(eventBase_ == 0);
-  eventBase_ = event_base_new();
-
-  // Print some libevent stats
-  if (number_ == 0) {
-    GlobalOutput.printf("TNonblockingServer: using libevent %s method %s",
-            event_get_version(),
-            event_base_get_method(eventBase_));
-  }
-
-
-  registerEvents();
+  if (eventBase_ == NULL)
+    registerEvents();
 
   GlobalOutput.printf("TNonblockingServer: IO thread #%d entering loop...",
                       number_);

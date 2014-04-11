@@ -62,8 +62,20 @@ if WITH_PHP
 SUBDIRS += php
 endif
 
+if WITH_GO
+SUBDIRS += go
+endif
+
 if WITH_D
 SUBDIRS += d
+endif
+
+if WITH_NODEJS
+SUBDIRS += nodejs
+endif
+
+if WITH_LUA
+SUBDIRS += lua
 endif
 
 # All of the libs that don't use Automake need to go in here
@@ -73,9 +85,7 @@ EXTRA_DIST = \
 			cocoa \
 			d \
 			delphi \
-			go \
 			javame \
 			js \
-			nodejs \
 			ocaml \
 			st

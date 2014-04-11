@@ -949,8 +949,7 @@ void t_py_generator::generate_py_struct_writer(ofstream& out,
   const vector<t_field*>& fields = tstruct->get_sorted_members();
   vector<t_field*>::const_iterator f_iter;
 
-  indent(out) <<
-    "def write(self, oprot):" << endl;
+  indent(out) << "def write(self, oprot):" << endl;
   indent_up();
 
   indent(out) <<
@@ -1062,7 +1061,7 @@ void t_py_generator::generate_service(t_service* tservice) {
 
   f_service_ << endl;
 
-  // Generate the three main parts of the service (well, two for now in PHP)
+  // Generate the three main parts of the service
   generate_service_interface(tservice);
   generate_service_client(tservice);
   generate_service_server(tservice);
@@ -1568,13 +1567,13 @@ void t_py_generator::generate_service_remote(t_service* tservice) {
 
   f_remote <<
     "if len(sys.argv) <= 1 or sys.argv[1] == '--help':" << endl <<
-    "  print ''" << endl <<
-    "  print 'Usage: ' + sys.argv[0] + ' [-h host[:port]] [-u url] [-f[ramed]] function [arg1 [arg2...]]'" << endl <<
-    "  print ''" << endl <<
-    "  print 'Functions:'" << endl;
+    "  print('')" << endl <<
+    "  print('Usage: ' + sys.argv[0] + ' [-h host[:port]] [-u url] [-f[ramed]] function [arg1 [arg2...]]')" << endl <<
+    "  print('')" << endl <<
+    "  print('Functions:')" << endl;
   for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
     f_remote <<
-      "  print '  " << (*f_iter)->get_returntype()->get_name() << " " << (*f_iter)->get_name() << "(";
+      "  print('  " << (*f_iter)->get_returntype()->get_name() << " " << (*f_iter)->get_name() << "(";
     t_struct* arg_struct = (*f_iter)->get_arglist();
     const std::vector<t_field*>& args = arg_struct->get_members();
     vector<t_field*>::const_iterator a_iter;
@@ -1589,10 +1588,10 @@ void t_py_generator::generate_service_remote(t_service* tservice) {
       f_remote <<
         args[i]->get_type()->get_name() << " " << args[i]->get_name();
     }
-    f_remote << ")'" << endl;
+    f_remote << ")')" << endl;
   }
   f_remote <<
-    "  print ''" << endl <<
+    "  print('')" << endl <<
     "  sys.exit(0)" << endl <<
     endl;
 
@@ -1664,7 +1663,7 @@ void t_py_generator::generate_service_remote(t_service* tservice) {
     f_remote <<
       "if cmd == '" << (*f_iter)->get_name() << "':" << endl <<
       "  if len(args) != " << num_args << ":" << endl <<
-      "    print '" << (*f_iter)->get_name() << " requires " << num_args << " args'" << endl <<
+      "    print('" << (*f_iter)->get_name() << " requires " << num_args << " args')" << endl <<
       "    sys.exit(1)" << endl <<
       "  pp.pprint(client." << (*f_iter)->get_name() << "(";
     for (int i = 0; i < num_args; ++i) {
@@ -1681,7 +1680,7 @@ void t_py_generator::generate_service_remote(t_service* tservice) {
 
   if (functions.size() > 0) {
     f_remote << "else:" << endl;
-    f_remote << "  print 'Unrecognized method %s' % cmd" << endl;
+    f_remote << "  print('Unrecognized method %s' % cmd)" << endl;
     f_remote << "  sys.exit(1)" << endl;
     f_remote << endl;
   }
@@ -1698,7 +1697,7 @@ void t_py_generator::generate_service_remote(t_service* tservice) {
           S_IRUSR
         | S_IWUSR
         | S_IXUSR
-#ifndef MINGW
+#ifndef _WIN32
         | S_IRGRP
         | S_IXGRP
         | S_IROTH
@@ -2180,7 +2179,7 @@ void t_py_generator::generate_deserialize_field(ofstream &out,
         out << "readDouble();";
         break;
       default:
-        throw "compiler error: no PHP name for base type " + t_base_type::t_base_name(tbase);
+        throw "compiler error: no Python name for base type " + t_base_type::t_base_name(tbase);
       }
     } else if (type->is_enum()) {
       out << "readI32();";
@@ -2378,7 +2377,7 @@ void t_py_generator::generate_serialize_field(ofstream &out,
         out << "writeDouble(" << name << ")";
         break;
       default:
-        throw "compiler error: no PHP name for base type " + t_base_type::t_base_name(tbase);
+        throw "compiler error: no Python name for base type " + t_base_type::t_base_name(tbase);
       }
     } else if (type->is_enum()) {
       out << "writeI32(" << name << ")";
@@ -2402,8 +2401,7 @@ void t_py_generator::generate_serialize_struct(ofstream &out,
                                                t_struct* tstruct,
                                                string prefix) {
   (void) tstruct;
-  indent(out) <<
-    prefix << ".write(oprot)" << endl;
+  indent(out) << prefix << ".write(oprot)" << endl;
 }
 
 void t_py_generator::generate_serialize_container(ofstream &out,

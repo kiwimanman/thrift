@@ -124,6 +124,7 @@ libthriftqt_la_LDFLAGS   = -release $(VERSION) $(BOOST_LDFLAGS) $(QT_LIBS)
 include_thriftdir = $(includedir)/thrift
 include_thrift_HEADERS = \
                          $(top_builddir)/config.h \
+                         src/thrift/thrift-config.h \
                          src/thrift/TDispatchProcessor.h \
                          src/thrift/Thrift.h \
                          src/thrift/TReflectionLocal.h \
@@ -140,6 +141,10 @@ include_concurrency_HEADERS = \
                          src/thrift/concurrency/Monitor.h \
                          src/thrift/concurrency/PlatformThreadFactory.h \
                          src/thrift/concurrency/PosixThreadFactory.h \
+                         src/thrift/concurrency/StdMonitor.cpp \
+                         src/thrift/concurrency/StdMutex.cpp \
+                         src/thrift/concurrency/StdThreadFactory.cpp \
+                         src/thrift/concurrency/StdThreadFactory.h \
                          src/thrift/concurrency/Thread.h \
                          src/thrift/concurrency/ThreadManager.h \
                          src/thrift/concurrency/TimerManager.h \
@@ -165,6 +170,7 @@ include_protocol_HEADERS = \
 
 include_transportdir = $(include_thriftdir)/transport
 include_transport_HEADERS = \
+                         src/thrift/transport/PlatformSocket.h \
                          src/thrift/transport/TFDTransport.h \
                          src/thrift/transport/TFileTransport.h \
                          src/thrift/transport/TSimpleFileTransport.h \
@@ -219,7 +225,7 @@ include_qt_HEADERS = \
 THRIFT = $(top_builddir)/compiler/cpp/thrift
 
 WINDOWS_DIST = \
-             README_WINDOWS \
+             README_WINDOWS.md \
              src/thrift/windows \
              thrift.sln \
              libthrift.vcxproj \
@@ -228,8 +234,8 @@ WINDOWS_DIST = \
              libthriftnb.vcxproj.filters
 
 EXTRA_DIST = \
-             README \
-             README.SSL \
+             README.md \
+             README.SSL.md \
              thrift-nb.pc.in \
              thrift.pc.in \
              thrift-z.pc.in \

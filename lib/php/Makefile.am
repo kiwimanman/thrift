@@ -111,9 +111,17 @@ phptype_DATA = \
   lib/Thrift/Type/TType.php
 
 EXTRA_DIST = \
-	src \
-	lib \
-	thrift_protocol.ini \
-	README.apache
+  lib \
+  src/autoload.php \
+  src/ext/thrift_protocol/config.w32 \
+  src/ext/thrift_protocol/php_thrift_protocol.cpp \
+  src/ext/thrift_protocol/php_thrift_protocol.h \
+  src/Thrift.php \
+  src/TStringUtils.php \
+  thrift_protocol.ini \
+  README.apache.md
 
-MAINTAINERCLEANFILES = Makefile Makefile.in
+MAINTAINERCLEANFILES = \
+  Makefile \
+  Makefile.in
+

@@ -105,12 +105,15 @@
     <Compile Include="Server\TServer.cs" />
     <Compile Include="Server\TSimpleServer.cs" />
     <Compile Include="Server\TThreadPoolServer.cs" />
+    <Compile Include="TException.cs" />
     <Compile Include="TApplicationException.cs" />
     <Compile Include="TProcessor.cs" />
     <Compile Include="Transport\TBufferedTransport.cs" />
     <Compile Include="Transport\TFramedTransport.cs" />
     <Compile Include="Transport\THttpClient.cs" />
     <Compile Include="Transport\THttpHandler.cs" />
+    <Compile Include="Transport\TNamedPipeClientTransport.cs" />
+    <Compile Include="Transport\TNamedPipeServerTransport.cs" />
     <Compile Include="Transport\TServerSocket.cs" />
     <Compile Include="Transport\TServerTransport.cs" />
     <Compile Include="Transport\TSocket.cs" />

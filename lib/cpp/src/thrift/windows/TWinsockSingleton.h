@@ -28,7 +28,7 @@
 #error This is a MSVC header only.
 #endif
 
-#include "config.h"
+#include <thrift/thrift-config.h>
 
 // boost
 #include <boost/noncopyable.hpp>
@@ -54,12 +54,6 @@ class TWinsockSingleton : private boost::noncopyable
 public:
 
     typedef boost::scoped_ptr<TWinsockSingleton> instance_ptr;
-
-private:
-
-#if USE_BOOST_THREAD
-    friend void boost::call_once(void (*func)(void), boost::once_flag& flag);
-#endif
 
 private:
 

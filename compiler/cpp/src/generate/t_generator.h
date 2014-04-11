@@ -59,7 +59,7 @@ class t_generator {
 
   const t_program* get_program() const { return program_; }
 
-  void generate_docstring_comment(std::ofstream& out,
+  void generate_docstring_comment(std::ostream& out,
                                   const std::string& comment_start,
                                   const std::string& line_prefix,
                                   const std::string& contents,
@@ -110,6 +110,7 @@ class t_generator {
   }
   virtual void generate_struct   (t_struct*   tstruct)   = 0;
   virtual void generate_service  (t_service*  tservice)  = 0;
+  virtual void generate_forward_declaration (t_struct*) {}
   virtual void generate_xception (t_struct*   txception) {
     // By default exceptions are the same as structs
     generate_struct(txception);

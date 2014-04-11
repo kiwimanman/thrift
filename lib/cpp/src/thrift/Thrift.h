@@ -20,10 +20,10 @@
 #ifndef _THRIFT_THRIFT_H_
 #define _THRIFT_THRIFT_H_ 1
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include <thrift/transport/PlatformSocket.h>
+
+#include <thrift/thrift-config.h>
+
 #include <stdio.h>
 #include <assert.h>
 
@@ -69,7 +69,7 @@
 #define THRIFT_OVERLOAD_IF(T, Y) \
   THRIFT_OVERLOAD_IF_DEFN(T, Y) = NULL
 
-#define THRIFT_UNUSED_VARIABLE(x) ((x)=(x))
+#define THRIFT_UNUSED_VARIABLE(x) ((void)(x))
 
 namespace apache { namespace thrift {
 
@@ -86,6 +86,7 @@ class TEnumIterator : public std::iterator<std::forward_iterator_tag, std::pair<
   }
 
   bool operator !=(const TEnumIterator& end) {
+    (void)end;  // avoid "unused" warning with NDEBUG
     assert(end.n_ == -1);
     return (ii_ != n_);
   }

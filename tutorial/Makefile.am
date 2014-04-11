@@ -32,14 +32,6 @@ SUBDIRS += java
 SUBDIRS += js
 endif
 
-if WITH_PERL
-#SUBDIRS += perl
-endif
-
-if WITH_PHP
-#SUBDIRS += php
-endif
-
 if WITH_PYTHON
 SUBDIRS += py
 SUBDIRS += py.twisted
@@ -50,8 +42,12 @@ if WITH_RUBY
 SUBDIRS += rb
 endif
 
-if WITH_HASKELL
-#SUBDIRS += hs
+if WITH_GO
+SUBDIRS += go
+endif
+
+if WITH_NODEJS
+SUBDIRS += nodejs
 endif
 
 #
@@ -59,5 +55,19 @@ endif
 #
 all-local:
 	$(top_builddir)/compiler/cpp/thrift --gen html -r $(top_srcdir)/tutorial/tutorial.thrift
-
 endif
+
+# Any folders or files not listed above being added to SUBDIR need to be placed here in
+# EXTRA_DIST to be included in the release
+EXTRA_DIST = \
+	csharp \
+	d \
+	delphi \
+	erl \
+	gen-html \
+	hs \
+	ocaml \
+	perl \
+	php \
+	shared.thrift \
+	tutorial.thrift

@@ -58,7 +58,10 @@ THRIFTCODE= \
             src/Transport/THttpClient.cs \
             src/Transport/THttpHandler.cs \
             src/Transport/TMemoryBuffer.cs \
+            src/Transport/TNamedPipeClientTransport.cs \
+            src/Transport/TNamedPipeServerTransport.cs \
             src/TProcessor.cs \
+            src/TException.cs \
             src/TApplicationException.cs
 
 CSC=gmcs

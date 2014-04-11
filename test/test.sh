@@ -60,7 +60,7 @@ do_test () {
     timeout $server_timeout $server_exec > log/${testname}_server.log 2>&1 &
     sleep $server_startup_time
     $client_exec > log/${testname}_client.log 2>&1
-    
+
     if [ "$?" -eq "0" ]; then
       echo " success"
     else
@@ -88,16 +88,19 @@ print_header
 #TODO add enum for parameters
 #TODO align program arguments across languages
 
-cpp_protocols="binary json"
-java_protocols="binary json compact"
+cpp_protocols="binary compact json"
+java_protocols="binary compact json"
 cpp_transports="buffered framed http"
 java_server_transports="buffered framed fastframed"
 java_client_transports=${java_server_transports}" http"
 # we need a test certificate first
-cpp_sockets="ip domain"
+cpp_sockets="ip domain ip-ssl"
 java_sockets="ip ip-ssl"
 # TODO fastframed java transport is another implementation of framed transport
 
+nodejs_protocols="binary json"
+nodejs_transports="buffered framed"
+nodejs_sockets="ip ip-ssl"
 
 ant -f ../lib/java/build.xml compile-test 1>/dev/null
 
@@ -167,6 +170,42 @@ for proto in $(intersection "${cpp_protocols}" "${java_protocols}"); do
   done
 done
 
+
+NODE_TEST_DIR=${BASEDIR}/../../lib/nodejs/test
+export NODE_PATH=${NODE_TEST_DIR}:${NODE_TEST_DIR}/../lib:${NODE_PATH}
+######### nodejs client - cpp server ##############
+##
+for proto in $(intersection "${nodejs_protocols}" "${cpp_protocols}"); do
+  for trans in $(intersection "${nodejs_transports}" "${cpp_transports}"); do
+    for sock in $(intersection "${nodejs_sockets}" "${cpp_sockets}"); do
+      case "$sock" in
+        "ip" ) extraparam="";;
+        "ip-ssl" ) extraparam="--ssl";;
+      esac
+      do_test "nodejs-cpp" "${proto}" "${trans}-ip" \
+              "nodejs ${NODE_TEST_DIR}/client.js -p ${proto} -t ${trans} ${extraparam}" \
+              "cpp/TestServer --protocol=${proto} --transport=${trans} ${extraparam}" \
+              "10" "10"
+    done
+  done
+done
+
+######### cpp client - nodejs server ##############
+for proto in $(intersection "${nodejs_protocols}" "${cpp_protocols}"); do
+  for trans in $(intersection "${nodejs_transports}" "${cpp_transports}"); do
+    for sock in $(intersection "${nodejs_sockets}" "${cpp_sockets}"); do
+      case "$sock" in
+        "ip" ) extraparam="";;
+        "ip-ssl" ) extraparam="--ssl";;
+      esac
+      do_test "cpp-nodejs" "${proto}" "${trans}-ip" \
+              "cpp/TestClient --protocol=${proto} --transport=${trans} ${extraparam}" \
+              "nodejs ${NODE_TEST_DIR}/server.js -p ${proto} -t ${trans} ${extraparam}" \
+              "10" "10"
+    done
+  done
+done
+
 # delete Unix Domain Socket used by cpp tests
 rm -f /tmp/ThriftTest.thrift
 
@@ -198,7 +237,7 @@ do_test "py-java"  "binary" "buffered-ip" \
         "py/TestClient.py --proto=binary --port=9090 --host=localhost --genpydir=py/gen-py" \
         "ant -f  ../lib/java/build.xml -Dno-gen-thrift=\"\" testserver" \
         "15" "15"
-do_test "py-java"  "json"   "json-ip" \
+do_test "py-java"  "json"   "buffered-ip" \
         "py/TestClient.py --proto=json --port=9090 --host=localhost --genpydir=py/gen-py" \
         "ant -f  ../lib/java/build.xml -Dno-gen-thrift=\"\" -Dtestargs \"--protocol=json\" testserver" \
         "15" "10"
@@ -218,17 +257,12 @@ do_test "php-cpp"  "binary" "buffered-ip" \
         "make -C php/ client" \
         "cpp/TestServer" \
         "10" "10"
-do_test "nodejs-nodejs" "binary" "framed-ip" \
-        "make -C nodejs/ client" \
-        "make -C nodejs/ server" \
+do_test "rb-rb" "binary" "buffered-ip" \
+        "ruby rb/integration/simple_client.rb" \
+        "ruby rb/integration/simple_server.rb" \
         "1" "5"
-do_test "nodejs-cpp" "binary" "framed-ip" \
-        "make -C nodejs/ client" \
-        "cpp/TestServer --transport=framed" \
-        "1" "10"
-do_test "cpp-nodejs" "binary" "framed-ip" \
-        "cpp/TestClient --transport=framed" \
-        "make -C nodejs/ server" \
+do_test "rb-rb" "binary-accl" "buffered-ip" \
+        "ruby rb/integration/accelerated_buffered_client.rb" \
+        "ruby rb/integration/accelerated_buffered_server.rb" \
         "1" "5"
-
 cd -

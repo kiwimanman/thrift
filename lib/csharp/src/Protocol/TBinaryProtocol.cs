@@ -35,10 +35,6 @@ namespace Thrift.Protocol
 		protected bool strictRead_ = false;
 		protected bool strictWrite_ = true;
 
-		protected int readLength_;
-		protected bool checkReadLength_ = false;
-
-
 		#region BinaryProtocol Factory
 		 /**
 		  * Factory
@@ -343,7 +339,9 @@ namespace Thrift.Protocol
 			return (int)(((i32in[0] & 0xff) << 24) | ((i32in[1] & 0xff) << 16) | ((i32in[2] & 0xff) << 8) | ((i32in[3] & 0xff)));
 		}
 
-		private byte[] i64in = new byte[8];
+#pragma warning disable 675
+
+        private byte[] i64in = new byte[8];
 		public override long ReadI64()
 		{
 			ReadAll(i64in, 0, 8);
@@ -360,7 +358,9 @@ namespace Thrift.Protocol
             }
         }
 
-		public override double ReadDouble()
+#pragma warning restore 675
+
+        public override double ReadDouble()
 		{
 #if !SILVERLIGHT
 			return BitConverter.Int64BitsToDouble(ReadI64());
@@ -371,35 +371,15 @@ namespace Thrift.Protocol
 #endif
 		}
 
-		public void SetReadLength(int readLength)
-		{
-			readLength_ = readLength;
-			checkReadLength_ = true;
-		}
-
-		protected void CheckReadLength(int length)
-		{
-			if (checkReadLength_)
-			{
-				readLength_ -= length;
-				if (readLength_ < 0)
-				{
-					throw new Exception("Message length exceeded: " + length);
-				}
-			}
-		}
-
 		public override byte[] ReadBinary()
 		{
 			int size = ReadI32();
-			CheckReadLength(size);
 			byte[] buf = new byte[size];
 			trans.ReadAll(buf, 0, size);
 			return buf;
 		}
 		private  string ReadStringBody(int size)
 		{
-			CheckReadLength(size);
 			byte[] buf = new byte[size];
 			trans.ReadAll(buf, 0, size);
 			return Encoding.UTF8.GetString(buf, 0, buf.Length);
@@ -407,7 +387,6 @@ namespace Thrift.Protocol
 
 		private int ReadAll(byte[] buf, int off, int len)
 		{
-			CheckReadLength(len);
 			return trans.ReadAll(buf, off, len);
 		}
 

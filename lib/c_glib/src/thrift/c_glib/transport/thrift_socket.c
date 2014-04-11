@@ -56,18 +56,27 @@ thrift_socket_open (ThriftTransport *transport, GError **error)
 {
   struct hostent *hp = NULL;
   struct sockaddr_in pin;
+  int err;
+#if defined(HAVE_GETHOSTBYNAME_R)
+  struct hostent he;
+  char buf[1024];
+#endif
 
   ThriftSocket *tsocket = THRIFT_SOCKET (transport);
   g_return_val_if_fail (tsocket->sd == 0, FALSE);
 
   /* lookup the destination host */
-  if ((hp = gethostbyname (tsocket->hostname)) == NULL)
+#if defined(HAVE_GETHOSTBYNAME_R)
+  if (gethostbyname_r (tsocket->hostname, &he, buf, 1024, &hp, &err) != 0 || hp == NULL)
+#else
+  if ((hp = gethostbyname (tsocket->hostname)) == NULL && (err = h_errno))
+#endif
   {
     /* host lookup failed, bail out with an error */
     g_set_error (error, THRIFT_TRANSPORT_ERROR, THRIFT_TRANSPORT_ERROR_HOST,
                  "host lookup failed for %s:%d - %s",
                  tsocket->hostname, tsocket->port,
-                 hstrerror (h_errno));
+                 hstrerror (err));
     return FALSE;
   }
 
@@ -130,7 +139,7 @@ thrift_socket_read (ThriftTransport *transport, gpointer buf,
   while (got < len)
   {
     ret = recv (socket->sd, buf+got, len-got, 0);
-    if (ret < 0)
+    if (ret <= 0)
     {
       g_set_error (error, THRIFT_TRANSPORT_ERROR,
                    THRIFT_TRANSPORT_ERROR_RECEIVE,

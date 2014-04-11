@@ -17,7 +17,7 @@
 # under the License.
 #
 
-SUBDIRS = nodejs
+SUBDIRS =
 
 if WITH_CPP
 SUBDIRS += cpp
@@ -55,7 +55,6 @@ EXTRA_DIST = \
 	test.sh \
 	cpp \
 	hs \
-	nodejs \
 	ocaml \
 	perl \
 	php \
@@ -70,6 +69,7 @@ EXTRA_DIST = \
 	DebugProtoTest.thrift \
 	DenseLinkingTest.thrift \
 	DocTest.thrift \
+	Include.thrift \
 	JavaBeansTest.thrift \
 	ManyOptionals.thrift \
 	ManyTypedefs.thrift \

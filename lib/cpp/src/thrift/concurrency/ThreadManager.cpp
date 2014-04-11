@@ -17,9 +17,7 @@
  * under the License.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <thrift/thrift-config.h>
 
 #include <thrift/concurrency/ThreadManager.h>
 #include <thrift/concurrency/Exception.h>
@@ -310,7 +308,7 @@ class ThreadManager::Worker: public Runnable {
         }
       }
 
-      if (task != NULL) {
+      if (task) {
         if (task->state_ == ThreadManager::Task::EXECUTING) {
           try {
             task->run();
@@ -377,7 +375,7 @@ void ThreadManager::Impl::start() {
   {
     Synchronized s(monitor_);
     if (state_ == ThreadManager::UNINITIALIZED) {
-      if (threadFactory_ == NULL) {
+      if (!threadFactory_) {
         throw InvalidArgumentException();
       }
       state_ = ThreadManager::STARTED;
@@ -448,8 +446,8 @@ void ThreadManager::Impl::removeWorker(size_t value) {
     }
 
     for (std::set<shared_ptr<Thread> >::iterator ix = deadWorkers_.begin(); ix != deadWorkers_.end(); ix++) {
-      workers_.erase(*ix);
       idMap_.erase((*ix)->getId());
+      workers_.erase(*ix);
     }
 
     deadWorkers_.clear();
